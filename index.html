@@ -345,7 +345,7 @@ function CircuitTrainer() {
 
         <div style={{marginBottom:28}}>
           <div style={S.label}>People</div>
-          <div style={{display:"flex", gap:10}}>{[1,2,3,4].map(n=><button key={n} onClick={()=>setNumPeople(n)} style={S.seg(numPeople===n, PERSON_COLORS[n-1])}>{n}</button>)}</div>
+          <div style={{display:"flex", gap:10}}>{[1,2,3,4].map(n=><button key={n} onClick={()=>setNumPeople(n)} style={S.seg(numPeople===n, "#4ade80")}>{n}</button>)}</div>
         </div>
 
         {numPeople>1&&(
@@ -353,9 +353,9 @@ function CircuitTrainer() {
             <div style={S.label}>Names (optional)</div>
             <div style={{display:"grid", gridTemplateColumns:numPeople>2?"1fr 1fr":"1fr", gap:10}}>
               {Array.from({length:numPeople},(_,i)=>(
-                <div key={i} style={{display:"flex", alignItems:"center", gap:10, background:"#1a2035", border:`1px solid ${PERSON_COLORS[i]}55`, borderRadius:10, padding:"11px 14px"}}>
-                  <div style={{width:9, height:9, borderRadius:"50%", background:PERSON_COLORS[i], flexShrink:0}}/>
+                <div key={i} style={{display:"flex", alignItems:"center", gap:10, background:"#1a2035", border:"1px solid #2d3a50", borderRadius:10, padding:"11px 14px"}}>
                   <input value={names[i]} onChange={e=>{const n=[...names];n[i]=e.target.value;setNames(n);}} maxLength={10}
+                    placeholder={`Person ${i+1}`}
                     style={{background:"transparent", border:"none", outline:"none", color:"#e8eaed", fontSize:14, fontFamily:"'DM Mono',monospace", width:"100%"}}/>
                 </div>
               ))}
@@ -635,7 +635,6 @@ function CircuitTrainer() {
           <div style={{paddingBottom:8}}>
             <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:12}}>
               <button onClick={()=>setFocusPerson(null)} style={{...S.btnSec, padding:"7px 14px", fontSize:11}}>← All</button>
-              <div style={{width:9, height:9, borderRadius:"50%", background:focusData.color}}/>
               <div style={{fontSize:14, color:"#e2e8f0", fontWeight:600}}>{focusData.name}</div>
             </div>
             {focusData.slot
@@ -646,8 +645,10 @@ function CircuitTrainer() {
         ):(
           <div>
           {isResting&&(
-            <div style={{textAlign:"center", marginBottom:10}}>
-              <div style={{display:"inline-block", fontSize:11, fontWeight:700, letterSpacing:"0.22em", color:"#4ade80", background:"#0a2a1a", border:"1px solid #4ade8055", borderRadius:6, padding:"5px 16px"}}>UP NEXT</div>
+            <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:12, padding:"8px 4px"}}>
+              <div style={{flex:1, height:1, background:"#4ade8033"}}/>
+              <div style={{fontSize:13, fontWeight:700, letterSpacing:"0.2em", color:"#4ade80"}}>▼ UP NEXT</div>
+              <div style={{flex:1, height:1, background:"#4ade8033"}}/>
             </div>
           )}
           <div style={{
@@ -657,10 +658,13 @@ function CircuitTrainer() {
             paddingBottom:8,
           }}>
             {people.map((p,i)=>(
-              <button key={i} onClick={()=>setFocusPerson(i)}
-                style={{background:"transparent", border:"none", padding:0, cursor:"pointer", textAlign:"left", display:"block"}}>
-                <PersonCard slot={p.slot} color={p.color} name={p.name} isResting={isResting} showName/>
-              </button>
+              <div key={i} style={{display:"flex", flexDirection:"column"}}>
+                <div style={{fontSize:11, fontWeight:700, color:"#a0aec0", letterSpacing:"0.12em", textTransform:"uppercase", paddingBottom:5, paddingLeft:2}}>{p.name}</div>
+                <button onClick={()=>setFocusPerson(i)}
+                  style={{background:"transparent", border:"none", padding:0, cursor:"pointer", textAlign:"left", display:"block", flex:1}}>
+                  <PersonCard slot={p.slot} isResting={isResting}/>
+                </button>
+              </div>
             ))}
           </div>
           </div>
@@ -702,18 +706,11 @@ function PersonCard({ slot, color, name, isResting, large, showName }) {
       )}
 
       <div style={{padding:large?"16px 20px 20px":"12px 14px 14px"}}>
-        {showName&&(
-          <div style={{display:"flex", alignItems:"center", gap:7, marginBottom:8}}>
-            <div style={{width:8, height:8, borderRadius:"50%", background:color}}/>
-            <div style={{fontSize:13, color:"#cbd5e0", fontWeight:700, letterSpacing:"0.05em"}}>{name}</div>
-          </div>
-        )}
-
         <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8, marginBottom:large?10:6}}>
           <div style={{fontSize:large?20:14, fontWeight:700, lineHeight:1.2, fontFamily:"Georgia,serif", color:"#f7fafc"}}>{slot.label||slot.name}</div>
           <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0}}>
-            <div style={{background:`${color}25`, border:`1px solid ${color}55`, borderRadius:6, padding:"3px 8px", fontSize:10, color, letterSpacing:"0.06em", textTransform:"uppercase", fontWeight:700}}>
-              {isResting?"REST":tc.label}
+            <div style={{background:`${tc.accent}20`, border:`1px solid ${tc.accent}44`, borderRadius:6, padding:"3px 8px", fontSize:10, color:tc.accent, letterSpacing:"0.06em", textTransform:"uppercase", fontWeight:700}}>
+              {tc.label}
             </div>
           </div>
         </div>
