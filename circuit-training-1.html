@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0d0f12"/>
+<title>Circuit Training</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:#0d0f12;height:100%;overscroll-behavior:none;}
+  input,textarea,button{font-family:'DM Mono','Courier New',monospace;}
+  #root{min-height:100vh;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script>
+(function(){const ow=console.warn.bind(console);console.warn=(...a)=>{if(typeof a[0]==='string'&&a[0].includes('in-browser Babel'))return;ow(...a);};})();
+(function(){let done=false;function unlock(){if(done)return;done=true;try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const buf=ctx.createBuffer(1,1,22050);const src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);src.start(0);window.__audioCtx=ctx;}catch(e){}}['touchstart','touchend','mousedown','keydown'].forEach(ev=>document.addEventListener(ev,unlock,{once:true,passive:true}));})();
+</script>
+<script type="text/babel" data-presets="react,env">
+const { useState, useEffect, useRef } = React;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXERCISE DATABASE — sourced from F45, Barry's, Orangetheory, Crossfit
+// gif: animated demo from Giphy/Tenor public fitness library
+// ─────────────────────────────────────────────────────────────────────────────
+// Circuit Training App v8 — full setup flow
+const INITIAL_DB = [
+  { id:"goblet",    name:"Goblet Squat",           equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Core",          type:"strength", source:"F45",          gif:"https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif",   cues:"Hold KB at chest, feet shoulder-width, sit deep into squat, elbows track inside knees. Drive through heels to stand." },
+  { id:"pressup",   name:"Press Ups",               equipment:"Bodyweight",         shared:null,         muscles:"Chest · Triceps · Shoulders",    type:"strength", source:"F45",          gif:"https://media.giphy.com/media/13bMNiSGeeSpUI/giphy.gif",      cues:"Hands shoulder-width, body straight from head to heel. Lower chest to floor, elbows 45° from torso. Press explosively." },
+  { id:"kbthrust",  name:"Kettlebell Thrust",       equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Shoulders",     type:"power",    source:"F45",          gif:"https://media.giphy.com/media/26BRzozg4TCBXv6QU/giphy.gif",   cues:"Front rack KB at chest, squat deep then drive through hips to press overhead in one explosive movement." },
+  { id:"climbers",  name:"Mountain Climbers",       equipment:"Bodyweight",         shared:null,         muscles:"Core · Hip Flexors · Cardio",    type:"cardio",   source:"F45",          gif:"https://media.giphy.com/media/14wHxi7dBMqVQQ/giphy.gif",      cues:"High plank, hands under shoulders. Drive knees alternately to chest at pace. Keep hips level, core braced." },
+  { id:"rdl",       name:"Romanian Deadlift",       equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Hamstrings · Glutes · Back",     type:"strength", source:"Barry's",      gif:"https://media.giphy.com/media/l0HlvtIPzPdt2usKS/giphy.gif",   cues:"Soft bend in knees, hinge at hips pushing them back. KB tracks close to legs. Feel hamstring stretch, then drive hips forward to stand." },
+  { id:"mbslam",    name:"Medicine Ball Slam",      equipment:"4kg Med Ball",       shared:"medball",    muscles:"Shoulders · Core · Full Body",   type:"power",    source:"F45",          gif:"https://media.giphy.com/media/26tPghhxMz84JiGRW/giphy.gif",   cues:"Raise ball overhead, full extension on toes, slam ball hard into ground. Hinge to pick up. Stay explosive." },
+  { id:"curtsey",   name:"Curtsey Lunge",           equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Quads · Adductors",     type:"strength", source:"Orangetheory", gif:"https://media.giphy.com/media/3oKIPyPFuQb2CxlO3K/giphy.gif",  cues:"Step one foot diagonally behind the other, lower back knee toward floor. Torso upright. Drive through front heel to return. Alternate legs." },
+  { id:"hipthrust", name:"Hip Thrust with Band",    equipment:"Band over shoulder", shared:null,         muscles:"Glutes · Hamstrings",            type:"strength", source:"Orangetheory", gif:"https://media.giphy.com/media/l4pTsNgG6lMR3nUHC/giphy.gif",  cues:"Band across hips, upper back on bench or floor. Drive hips to full extension, pause 1 second at top. Squeeze hard." },
+  { id:"curl",      name:"Bicep Curl with Band",    equipment:"Band (medium)",      shared:null,         muscles:"Biceps · Forearms",              type:"strength", source:"F45",          gif:"https://media.giphy.com/media/26xBP3CgG5WCFJdIG/giphy.gif",   cues:"Stand on band, palms forward. Curl to shoulders, slow 3-count lower. Keep elbows pinned at sides throughout." },
+  { id:"row",       name:"Single Arm Row / Plank",  equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Back · Core Anti-Rotation",      type:"strength", source:"F45",          gif:"https://media.giphy.com/media/26n6xCBqXqEqY12mA/giphy.gif",   cues:"Plank on one hand with feet wide. Row KB to hip, elbow skims ribs. Keep hips square — resist rotation. Swap arms each circuit." },
+  { id:"uprow",     name:"Upright Row",             equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Traps · Shoulders · Biceps",     type:"strength", source:"Barry's",      gif:"https://media.giphy.com/media/26BRrSvJAMPqk8ONW/giphy.gif",   cues:"Narrow grip on KB, lead with elbows up to chin height. Control the lower. Keep the movement smooth, avoid shrugging." },
+  { id:"mbsquat",   name:"Squat with Med Ball",     equipment:"4kg Med Ball",       shared:"medball",    muscles:"Quads · Glutes · Shoulders",     type:"strength", source:"F45",          gif:"https://media.giphy.com/media/l0HlHqYNqFSHrGs5a/giphy.gif",   cues:"Hold ball at chest. Squat to parallel, then press ball overhead as you stand. Control on the way down." },
+  { id:"plank",     name:"Plank Hold",              equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Glutes",      type:"core",     source:"F45",          gif:"https://media.giphy.com/media/l0HlMZrXA12Rr3z5K/giphy.gif",   cues:"Forearms on floor, elbows under shoulders. Squeeze glutes and core hard. Body one straight line. Breathe steadily." },
+  { id:"burpee",    name:"Burpee",                  equipment:"Bodyweight",         shared:null,         muscles:"Full Body · Cardio",             type:"cardio",   source:"F45",          gif:"https://media.giphy.com/media/23hPPMRcSAlXi/giphy.gif",        cues:"Drop chest to floor, jump feet to hands, explode up with arms overhead. Breathe out on the jump. Keep moving." },
+  { id:"bandchest", name:"Band Chest Stretch",      equipment:"Light band",         shared:null,         muscles:"Chest · Shoulder · Mobility",    type:"mobility", source:"Barry's",      gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"Band behind back at shoulder height. Step hands wider, open chest and hold a 2-second squeeze. Breathe into the stretch." },
+  { id:"glungelat", name:"Glider Lateral Lunge",    equipment:"Glider disc",        shared:null,         muscles:"Adductors · Glutes · Quads",     type:"strength", source:"Orangetheory", gif:"https://media.giphy.com/media/3o7TKwxYkeW0ZvTqsU/giphy.gif",  cues:"Disc under one foot, slide leg wide to side, sit into standing leg with control. Return by pushing through standing heel." },
+  { id:"glidermc",  name:"Glider Mountain Climber", equipment:"Glider discs",       shared:null,         muscles:"Core · Hip Flexors · Shoulders", type:"cardio",   source:"F45",          gif:"https://media.giphy.com/media/l0HlMZrXA12Rr3z5K/giphy.gif",   cues:"Discs under feet in high plank. Slide knees alternately to chest keeping hips down. Core locked, arms straight." },
+  { id:"jog",       name:"Jog / Run",               equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Full Body",             type:"cardio",   source:"Orangetheory", gif:"https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif",  cues:"Steady controlled pace. Breathe through nose if possible. Pump arms and keep an upright posture. Shake it out." },
+  { id:"sqjack",    name:"Squat Jacks",             equipment:"Bodyweight",         shared:null,         muscles:"Quads · Glutes · Cardio",        type:"cardio",   source:"F45",          gif:"https://media.giphy.com/media/l0HlP2PwWzSSNUzYc/giphy.gif",   cues:"Jump feet wide into squat, then jump feet together to stand. Keep chest up in squat position. Fast and rhythmic." },
+  { id:"thruster",  name:"Dumbbell Thruster",       equipment:"Bodyweight",         shared:null,         muscles:"Full Body · Power",              type:"power",    source:"CrossFit",     gif:"https://media.giphy.com/media/26BRzozg4TCBXv6QU/giphy.gif",   cues:"Front squat to overhead press in one fluid movement. Use the momentum from the squat to drive the press." },
+  { id:"tuckjump",  name:"Tuck Jumps",              equipment:"Bodyweight",         shared:null,         muscles:"Quads · Calves · Cardio",        type:"power",    source:"F45",          gif:"https://media.giphy.com/media/l0HlwDZy0H4QbPjgY/giphy.gif",   cues:"Jump and pull knees to chest at top. Land soft on balls of feet, absorb impact by bending knees. Stay light and bouncy." },
+  { id:"situp",     name:"Sit Ups",                 equipment:"Bodyweight",         shared:null,         muscles:"Abs · Hip Flexors",              type:"core",     source:"F45",          gif:"https://media.giphy.com/media/l0HlHFkFqnOoDGnVm/giphy.gif",   cues:"Feet flat, hands behind head or crossed on chest. Sit all the way up, lower slow on the way down. Breathe out on the way up." },
+
+  // ── Circuit 1 additions ──────────────────────────────────────────────────
+  { id:"lunge_kb",   name:"Lunges with KB/Ball",      equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Hamstrings",    type:"strength", source:"F45",          gif:"https://media.giphy.com/media/l0HlvtIPzPdt2usKS/giphy.gif",   cues:"Hold KB at chest or sides. Step forward, lower back knee to just above floor. Drive through front heel to return. Alternate forward, back and curtsy variations each round." },
+  { id:"pikecrnch",  name:"Pike Crunches",             equipment:"Bodyweight",         shared:null,         muscles:"Abs · Hip Flexors · Shoulders",  type:"core",     source:"F45",          gif:"https://media.giphy.com/media/l0HlHFkFqnOoDGnVm/giphy.gif",   cues:"Start in high plank. Drive hips up into pike position, pulling navel to spine. Lower with control. Keep arms straight throughout." },
+  { id:"runlaps",    name:"Run Laps",                  equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Full Body",             type:"cardio",   source:"Orangetheory", gif:"https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif",  cues:"Maintain an effort you can sustain for the interval. Drive arms, land midfoot, keep chest tall. Push the pace in the final 10 seconds." },
+  { id:"bodyroll",   name:"Body Roll",                 equipment:"Bodyweight",         shared:null,         muscles:"Spine · Core · Mobility",        type:"mobility", source:"Barry's",       gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"From standing, slowly roll down through your spine vertebra by vertebra, hang at the bottom, then roll back up. Soft knees, breathe throughout." },
+  { id:"aframejog",  name:"A-Frame Jog on Spot",       equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Legs · Core",           type:"cardio",   source:"F45",          gif:"https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif",  cues:"Feet wider than hips in A-frame stance. Jog on the spot, driving knees up alternately. Stay on the balls of feet, arms pumping. Keep core tight." },
+  { id:"frogsquat",  name:"Frog Squats",               equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Inner Thighs · Quads",  type:"strength", source:"F45",          gif:"https://media.giphy.com/media/l0HlP2PwWzSSNUzYc/giphy.gif",   cues:"Wide stance, toes turned out 45°. Squat deep, elbows pressing knees open at bottom. Drive through heels, squeeze glutes at top." },
+  { id:"chestextbn", name:"Chest Extension",           equipment:"Light band",         shared:null,         muscles:"Chest · Front Shoulder · Mobility",type:"mobility",source:"Barry's",      gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"Band behind back, arms out wide. Squeeze shoulder blades together and open chest. Hold 2 seconds at full extension. Control the return." },
+
+  // ── Circuit 2 additions ──────────────────────────────────────────────────
+  { id:"butterflycr",name:"Butterfly Crunches",        equipment:"Bodyweight",         shared:null,         muscles:"Abs · Inner Thighs",             type:"core",     source:"F45",          gif:"https://media.giphy.com/media/l0HlHFkFqnOoDGnVm/giphy.gif",   cues:"Lie on back, soles of feet together in butterfly position. Hands behind head, crunch up bringing elbows toward knees. Lower with control." },
+  { id:"tricepext",  name:"Tricep Extension",          equipment:"Light band",         shared:null,         muscles:"Triceps · Shoulders",            type:"strength", source:"F45",          gif:"https://media.giphy.com/media/26xBP3CgG5WCFJdIG/giphy.gif",   cues:"Band anchored overhead or underfoot. Extend arms from 90° at elbow to fully straight. Elbows stay pinned at sides. Slow 3-count return." },
+  { id:"rustwist",   name:"Russian Twists",            equipment:"4kg Med Ball",       shared:"medball",    muscles:"Obliques · Core · Hips",         type:"core",     source:"F45",          gif:"https://media.giphy.com/media/l0HlHFkFqnOoDGnVm/giphy.gif",   cues:"Sit with knees bent, heels just off floor. Hold ball at chest, rotate side to side touching ball to floor each rep. Keep chest tall." },
+  { id:"skaterjmp",  name:"Skater Jumps",              equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Quads · Balance · Cardio",type:"power",   source:"F45",          gif:"https://media.giphy.com/media/l0HlP2PwWzSSNUzYc/giphy.gif",   cues:"Leap laterally off one foot, land softly on opposite foot with knee slightly bent. Swing arms like a speed skater. Stay low and explosive." },
+  { id:"stepupwall", name:"Step Up onto Wall",         equipment:"Bodyweight",         shared:null,         muscles:"Quads · Glutes · Balance",       type:"strength", source:"Orangetheory", gif:"https://media.giphy.com/media/l0HlvtIPzPdt2usKS/giphy.gif",   cues:"Step one foot up onto low wall or step, drive through that heel to bring whole body up. Step down controlled. Alternate lead leg each rep." },
+  { id:"kbrowsquat", name:"KB Upright Row to Squat",  equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Traps · Shoulders · Quads · Glutes",type:"strength",source:"F45",         gif:"https://media.giphy.com/media/26BRrSvJAMPqk8ONW/giphy.gif",   cues:"Pull KB to chin in upright row, lower with control, then flow straight into a squat. Link the movements smoothly — row, lower, squat, stand, repeat." },
+  { id:"plankshouldertap",name:"Plank Shoulder Taps",  equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Anti-Rotation",type:"core",    source:"F45",          gif:"https://media.giphy.com/media/l0HlMZrXA12Rr3z5K/giphy.gif",   cues:"High plank. Tap opposite hand to shoulder alternately. Brace core hard to stop hips rocking side to side. The less movement the better." },
+  { id:"standcoretwist",name:"Standing Core Twist",   equipment:"4kg Med Ball",       shared:"medball",    muscles:"Obliques · Core · Shoulders",    type:"core",     source:"Barry's",       gif:"https://media.giphy.com/media/l0HlHFkFqnOoDGnVm/giphy.gif",   cues:"Stand feet hip-width, hold ball at chest. Rotate torso fully side to side keeping hips facing forward. Controlled power — not momentum." },
+  { id:"dynplank",   name:"Dynamic Plank",             equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Arms",        type:"core",     source:"F45",          gif:"https://media.giphy.com/media/l0HlMZrXA12Rr3z5K/giphy.gif",   cues:"Alternate between forearm plank and high plank — one arm at a time. Keep hips level and still throughout. Set a steady rhythm." },
+  { id:"pressupball",name:"Press-Up / Jump Out on Ball",equipment:"4kg Med Ball",      shared:"medball",    muscles:"Chest · Triceps · Core · Cardio",type:"power",    source:"F45",          gif:"https://media.giphy.com/media/13bMNiSGeeSpUI/giphy.gif",      cues:"One hand on ball, one on floor. Perform press-up, then roll or jump hands to swap sides. Keep core tight throughout the transition." },
+];
+
+const DEFAULT_IDS = ["goblet","pressup","mbslam","climbers","rdl","curtsey","hipthrust","kbthrust","curl","plank"];
+
+const TYPE_COLORS = {
+  strength: { bg:"#1a3a2a", accent:"#4ade80", label:"STRENGTH" },
+  cardio:   { bg:"#3a1a1a", accent:"#f87171", label:"CARDIO"   },
+  power:    { bg:"#2a1a3a", accent:"#c084fc", label:"POWER"    },
+  core:     { bg:"#3a2a1a", accent:"#fb923c", label:"CORE"     },
+  mobility: { bg:"#1a2a3a", accent:"#60a5fa", label:"MOBILITY" },
+};
+const TYPE_OPTIONS  = ["strength","cardio","power","core","mobility"];
+const EQUIP_COLORS  = { kettlebell:"#f87171", medball:"#c084fc" };
+const PERSON_COLORS = ["#60a5fa","#f472b6","#34d399","#fb923c"];
+const SOURCE_COLORS = { "F45":"#e05c2a", "Barry's":"#d4163c", "Orangetheory":"#f97316", "CrossFit":"#dc2626" };
+
+function buildSequence(exercises, numCircuits) {
+  const seq = [];
+  for (let c = 0; c < numCircuits; c++)
+    exercises.forEach((ex,i) => seq.push({ ...ex, circuit:c+1, slotInCircuit:i }));
+  return seq;
+}
+function validateSharedKit(exercises) {
+  const issues = [];
+  for (let i = 0; i < exercises.length; i++) {
+    const a=exercises[i], b=exercises[(i+1)%exercises.length];
+    if (a.shared && a.shared===b.shared)
+      issues.push(`"${a.name}" and "${b.name}" both need the ${a.shared}`);
+  }
+  return issues;
+}
+function fmtSec(s) { return s<60?`${s}s`:`${Math.floor(s/60)}m${s%60>0?" "+(s%60)+"s":""}`.trim(); }
+
+
+// ── Circuit optimiser ────────────────────────────────────────────────────────
+// Rules applied in order:
+// 1. No two adjacent exercises share the same "shared" equipment (kettlebell/medball)
+// 2. No two adjacent exercises hit the same primary muscle group
+// 3. Alternate upper/lower/core/cardio as much as possible
+// 4. Place high-intensity (power/cardio) exercises away from each other
+// 5. Start with compound movements, finish with core/mobility
+function optimiseCircuit(exercises) {
+  if (exercises.length <= 1) return exercises;
+
+  const MUSCLE_GROUP = (ex) => {
+    const m = (ex.muscles||"").toLowerCase();
+    if (m.includes("quad")||m.includes("glute")||m.includes("hamstring")||m.includes("lunge")||m.includes("squat")) return "lower";
+    if (m.includes("chest")||m.includes("shoulder")||m.includes("tricep")||m.includes("bicep")||m.includes("back")||m.includes("row")) return "upper";
+    if (m.includes("core")||m.includes("abs")||m.includes("oblique")||m.includes("plank")) return "core";
+    return "cardio";
+  };
+
+  // Score a sequence — lower is better
+  const score = (seq) => {
+    let s = 0;
+    for (let i = 0; i < seq.length; i++) {
+      const a = seq[i], b = seq[(i+1)%seq.length];
+      // Heavy penalty for shared equipment clash
+      if (a.shared && a.shared === b.shared) s += 100;
+      // Penalty for same muscle group back-to-back
+      if (MUSCLE_GROUP(a) === MUSCLE_GROUP(b)) s += 20;
+      // Penalty for two power/cardio back-to-back
+      if ((a.type==="power"||a.type==="cardio") && (b.type==="power"||b.type==="cardio")) s += 10;
+    }
+    // Prefer core/mobility near end
+    const last = seq[seq.length-1];
+    if (last.type==="core"||last.type==="mobility") s -= 5;
+    // Prefer compound strength/power near start
+    const first = seq[0];
+    if (first.type==="strength"||first.type==="power") s -= 3;
+    return s;
+  };
+
+  // Greedy nearest-neighbour with random restarts (fast enough for ≤15 exercises)
+  const shuffle = (arr) => [...arr].sort(()=>Math.random()-0.5);
+  let best = [...exercises], bestScore = score(best);
+
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const candidate = shuffle(exercises);
+    const s = score(candidate);
+    if (s < bestScore) { best = candidate; bestScore = s; }
+  }
+
+  // Final pass: if any adjacent shared-equipment clash remains, force-swap
+  const result = [...best];
+  for (let i = 0; i < result.length * 2; i++) {
+    const idx = i % result.length;
+    const next = (idx+1) % result.length;
+    if (result[idx].shared && result[idx].shared === result[next].shared) {
+      // Find a non-clashing swap partner
+      for (let j = 2; j < result.length; j++) {
+        const swap = (idx + j) % result.length;
+        if (!result[swap].shared || result[swap].shared !== result[idx].shared) {
+          [result[next], result[swap]] = [result[swap], result[next]];
+          break;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+const S = {
+  page:   { minHeight:"100vh", background:"#0d0f12", color:"#e8eaed", fontFamily:"'DM Mono','Courier New',monospace", display:"flex", flexDirection:"column", alignItems:"center", padding:"24px 20px 56px", boxSizing:"border-box" },
+  label:  { fontSize:12, letterSpacing:"0.16em", color:"#a0aec0", textTransform:"uppercase", marginBottom:10, fontWeight:600 },
+  h1:     { fontSize:32, fontWeight:700, fontFamily:"Georgia,serif", lineHeight:1.1, color:"#f7fafc", marginBottom:24 },
+  card:   { background:"#1a2035", border:"1px solid #2d3a50", borderRadius:12, padding:"18px" },
+  btnPri: { width:"100%", padding:"16px", borderRadius:10, border:"none", background:"#4ade80", color:"#042008", fontSize:14, fontWeight:700, letterSpacing:"0.12em", fontFamily:"'DM Mono',monospace", cursor:"pointer", textTransform:"uppercase" },
+  btnSec: { background:"transparent", color:"#a0aec0", border:"1px solid #2d3a50", borderRadius:8, padding:"11px 18px", fontSize:12, fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", cursor:"pointer", textTransform:"uppercase" },
+  seg:    (on, col) => ({ flex:1, height:48, borderRadius:8, background:on?(col||"#f7fafc"):"#1a2035", color:on?"#042008":"#a0aec0", border:on?"none":"1px solid #2d3a50", fontSize:17, fontWeight:700, fontFamily:"'DM Mono',monospace", cursor:"pointer" }),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+function CircuitTrainer() {
+  const [screen,       setScreen]       = useState("setup");
+  const [db,           setDb]           = useState(INITIAL_DB);
+  const [numCircuits,  setNumCircuits]  = useState(2);
+  const [numPeople,    setNumPeople]    = useState(2);
+  const [numExercises, setNumExercises] = useState(10);
+  const [names,        setNames]        = useState(["Alex","Sam","Jordan","Casey"]);
+  const [workSec,      setWorkSec]      = useState(45);
+  const [restSec,      setRestSec]      = useState(15);
+  const [chosen,       setChosen]       = useState(() => DEFAULT_IDS.map(id=>INITIAL_DB.find(e=>e.id===id)));
+  const [phase,        setPhase]        = useState("work");
+  const [masterIdx,    setMasterIdx]    = useState(0);
+  const [timeLeft,     setTimeLeft]     = useState(45);
+  const [elapsed,      setElapsed]      = useState(0);
+  const [focusPerson,  setFocusPerson]  = useState(null);
+  const [paused,       setPaused]       = useState(false);
+  const [reviewFilter, setReviewFilter] = useState("all");
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [optimised,    setOptimised]    = useState(false);
+  const timerRef  = useRef(null);
+  const seqRef    = useRef([]);
+  const audioRef  = useRef(null);
+  const spokenRef = useRef(new Set());
+
+  const handleSwap = (drag, targetIndex) => {
+    setChosen(prev => {
+      const nc = [...prev];
+      if (drag.source==="chosen") { const [m]=nc.splice(drag.index,1); nc.splice(targetIndex,0,m); }
+      else nc[targetIndex] = db[drag.index];
+      return nc;
+    });
+  };
+  // dragState kept as empty stub — drag UI replaced by checklist
+  const dragging = null;
+  const dragOver = null;
+
+  // When numExercises changes, trim or extend chosen list
+  useEffect(() => {
+    setChosen(prev => {
+      const updated = prev.map(c => db.find(e=>e.id===c.id)||c);
+      if (updated.length > numExercises) return updated.slice(0, numExercises);
+      if (updated.length < numExercises) {
+        const ids = new Set(updated.map(e=>e.id));
+        const pool = db.filter(e=>!ids.has(e.id));
+        return [...updated, ...pool.slice(0, numExercises - updated.length)];
+      }
+      return updated;
+    });
+  }, [numExercises, db]);
+
+  const seq        = seqRef.current;
+  const totalSlots = seq.length;
+  const totalTime  = totalSlots * (workSec+restSec);
+  const progPct    = Math.min((elapsed/Math.max(totalTime,1))*100, 100);
+  const mm         = Math.floor(elapsed/60).toString().padStart(2,"0");
+  const ss         = (elapsed%60).toString().padStart(2,"0");
+  const isResting  = phase==="rest";
+  const masterSlot = seq[masterIdx];
+  const mType      = masterSlot ? (TYPE_COLORS[masterSlot.type]||TYPE_COLORS.strength) : TYPE_COLORS.strength;
+  const circ       = 2*Math.PI*54;
+  const tMax       = isResting ? restSec : workSec;
+  const isCD       = !isResting && timeLeft<=10;
+  const ringColor  = paused?"#3a4a5a":isResting?"#4ade80":isCD?"#f87171":mType.accent;
+  const dash       = circ - (timeLeft/Math.max(tMax,1))*circ;
+
+  // ── Audio ─────────────────────────────────────────────────────────────
+  const initAudio = () => {
+    try {
+      if (!audioRef.current) audioRef.current = new (window.AudioContext||window.webkitAudioContext)();
+      if (audioRef.current.state==="suspended") audioRef.current.resume();
+      const p=new SpeechSynthesisUtterance(" "); p.volume=0; window.speechSynthesis.speak(p);
+    } catch(e){}
+  };
+  const beep = (freq=880,dur=0.12,vol=0.45,delay=0) => {
+    try {
+      const ctx=audioRef.current; if(!ctx||ctx.state!=="running") return;
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=freq; o.type="sine";
+      const t=ctx.currentTime+delay;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.linearRampToValueAtTime(0,t+dur);
+      o.start(t); o.stop(t+dur+0.05);
+    } catch(e){}
+  };
+  const speak = (text,rate=1.1) => {
+    try { window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=rate; u.volume=1.0; window.speechSynthesis.speak(u); } catch(e){}
+  };
+  const playStart = () => { beep(880,0.15,0.6); beep(1320,0.22,0.6,0.18); };
+
+  useEffect(() => {
+    if (screen!=="active"||paused) return;
+    if (phase==="work"&&timeLeft<=10&&timeLeft>0) {
+      if (!spokenRef.current.has(timeLeft)) {
+        spokenRef.current.add(timeLeft);
+        if (timeLeft===1) { beep(1100,0.3,0.6); speak("Go!",1.2); }
+        else speak(String(timeLeft),1.15);
+      }
+    }
+    if (phase==="rest"&&timeLeft===5) speak("Get ready",1.0);
+  }, [timeLeft, phase, screen, paused]);
+
+  useEffect(() => {
+    if (phase==="work") spokenRef.current=new Set();
+    if (screen==="active"&&phase==="work"&&!paused) playStart();
+  }, [phase, masterIdx]);
+
+  const stopTimer = () => { if (timerRef.current) clearInterval(timerRef.current); };
+  useEffect(() => {
+    if (screen==="active"&&!paused) {
+      timerRef.current = setInterval(()=>{ setTimeLeft(t=>t<=1?0:t-1); setElapsed(e=>e+1); },1000);
+      return stopTimer;
+    }
+  }, [screen, phase, masterIdx, paused]);
+
+  useEffect(() => {
+    if (timeLeft!==0) return;
+    stopTimer();
+    if (phase==="work") {
+      if (masterIdx+1>=totalSlots) setScreen("done");
+      else { setMasterIdx(i=>i+1); setTimeLeft(restSec); setPhase("rest"); }
+    } else { setTimeLeft(workSec); setPhase("work"); }
+  }, [timeLeft]);
+
+  const startSession = () => {
+    initAudio();
+    seqRef.current = buildSequence(chosen, numCircuits);
+    setMasterIdx(0); setElapsed(0); setTimeLeft(workSec);
+    setPhase("work"); setFocusPerson(null); setPaused(false);
+    setScreen("active");
+  };
+  const goHome = () => {
+    stopTimer(); seqRef.current=[];
+    setScreen("setup"); setMasterIdx(0); setTimeLeft(workSec);
+    setElapsed(0); setPhase("work"); setFocusPerson(null); setPaused(false);
+  };
+  const kitIssues = validateSharedKit(chosen);
+  const libAvail  = db.filter(ex=>!chosen.find(c=>c.id===ex.id));
+  const estMins   = Math.round(numCircuits*chosen.length*(workSec+restSec)/60);
+
+  if (screen==="admin") return <AdminScreen db={db} setDb={setDb} onBack={()=>setScreen("setup")} initAudio={initAudio} beep={beep}/>;
+
+  // ── SETUP ────────────────────────────────────────────────────────────
+  if (screen==="setup") return (
+    <div style={S.page}>
+      <div style={{width:"100%", maxWidth:600}}>
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:32}}>
+          <div style={{fontSize:13, letterSpacing:"0.2em", color:"#718096", fontWeight:600}}>CIRCUIT TRAINING</div>
+          <button onClick={()=>setScreen("admin")} style={{...S.btnSec, padding:"8px 14px", fontSize:11}}>⚙ ADMIN</button>
+        </div>
+        <div style={S.h1}>Set up<br/>your session</div>
+
+        <div style={{marginBottom:28}}>
+          <div style={S.label}>Circuits</div>
+          <div style={{display:"flex", gap:10}}>{[1,2,3,4].map(n=><button key={n} onClick={()=>setNumCircuits(n)} style={S.seg(numCircuits===n)}>{n}</button>)}</div>
+        </div>
+
+        <div style={{marginBottom:28}}>
+          <div style={S.label}>People</div>
+          <div style={{display:"flex", gap:10}}>{[1,2,3,4].map(n=><button key={n} onClick={()=>setNumPeople(n)} style={S.seg(numPeople===n, PERSON_COLORS[n-1])}>{n}</button>)}</div>
+        </div>
+
+        {numPeople>1&&(
+          <div style={{marginBottom:28}}>
+            <div style={S.label}>Names (optional)</div>
+            <div style={{display:"grid", gridTemplateColumns:numPeople>2?"1fr 1fr":"1fr", gap:10}}>
+              {Array.from({length:numPeople},(_,i)=>(
+                <div key={i} style={{display:"flex", alignItems:"center", gap:10, background:"#1a2035", border:`1px solid ${PERSON_COLORS[i]}55`, borderRadius:10, padding:"11px 14px"}}>
+                  <div style={{width:9, height:9, borderRadius:"50%", background:PERSON_COLORS[i], flexShrink:0}}/>
+                  <input value={names[i]} onChange={e=>{const n=[...names];n[i]=e.target.value;setNames(n);}} maxLength={10}
+                    style={{background:"transparent", border:"none", outline:"none", color:"#e8eaed", fontSize:14, fontFamily:"'DM Mono',monospace", width:"100%"}}/>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{marginBottom:28}}>
+          <div style={S.label}>Interval Timing</div>
+          <div style={{...S.card, display:"flex", flexDirection:"column", gap:24}}>
+            <Slider label="Work" value={workSec} min={20} max={240} step={5} onChange={setWorkSec} accent="#4ade80"/>
+            <Slider label="Rest" value={restSec} min={10} max={45}  step={5} onChange={setRestSec} accent="#60a5fa"/>
+          </div>
+        </div>
+
+        <div style={{...S.card, marginBottom:28, lineHeight:2.1}}>
+          {[
+            ["Exercises", `${chosen.length} selected`],
+            ["Work / Rest", `${fmtSec(workSec)} on · ${fmtSec(restSec)} rest`],
+            ["Circuits", `${numCircuits}×`],
+            ["Est. Duration", `~${estMins} min`],
+            numPeople>1 && ["Stagger", "1 exercise offset per person"],
+          ].filter(Boolean).map(([k,v])=>(
+            <div key={k} style={{display:"flex", justifyContent:"space-between", fontSize:13}}>
+              <span style={{color:"#718096"}}>{k}</span>
+              <span style={{color:"#e2e8f0", fontWeight:600}}>{v}</span>
+            </div>
+          ))}
+        </div>
+
+        <button onClick={()=>setScreen("review")} style={S.btnPri}>Review Exercises →</button>
+      </div>
+    </div>
+  );
+
+  // ── REVIEW ───────────────────────────────────────────────────────────
+  if (screen==="review") {
+    const selectedIds = new Set(chosen.map(e=>e.id));
+
+    const toggleEx = (ex) => {
+      setOptimised(false);
+      if (selectedIds.has(ex.id)) {
+        if (chosen.length > 1) setChosen(prev=>prev.filter(e=>e.id!==ex.id));
+      } else {
+        setChosen(prev=>[...prev, ex]);
+      }
+    };
+
+    const handleOptimise = () => {
+      setChosen(prev=>optimiseCircuit(prev));
+      setOptimised(true);
+    };
+
+    const visibleDb = db.filter(ex => {
+      if (reviewFilter!=="all" && ex.type!==reviewFilter) return false;
+      if (reviewSearch && !ex.name.toLowerCase().includes(reviewSearch.toLowerCase()) && !ex.equipment.toLowerCase().includes(reviewSearch.toLowerCase())) return false;
+      return true;
+    });
+
+    const kitIssues = validateSharedKit(chosen);
+
+    return (
+      <div style={S.page}>
+        <div style={{width:"100%", maxWidth:600}}>
+
+          {/* Header */}
+          <div style={{display:"flex", alignItems:"center", gap:14, marginBottom:20}}>
+            <button onClick={()=>setScreen("setup")} style={S.btnSec}>← Back</button>
+            <div style={{fontSize:12, letterSpacing:"0.18em", color:"#718096", fontWeight:600}}>SELECT EXERCISES</div>
+          </div>
+
+          {/* Selected count + optimise */}
+          <div style={{...S.card, marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12}}>
+            <div>
+              <div style={{fontSize:18, fontWeight:700, color:"#f7fafc"}}>{chosen.length} <span style={{fontSize:13, color:"#718096", fontWeight:400}}>selected</span></div>
+              <div style={{fontSize:11, color:"#4a5568", marginTop:2}}>Target: {numExercises} per circuit</div>
+            </div>
+            <div style={{display:"flex", flexDirection:"column", gap:8, alignItems:"flex-end"}}>
+              <button onClick={handleOptimise} style={{background:"#1e3a2e", border:"1px solid #4ade8066", borderRadius:8, color:"#4ade80", fontSize:12, fontWeight:700, padding:"9px 14px", fontFamily:"'DM Mono',monospace", cursor:"pointer", letterSpacing:"0.08em", whiteSpace:"nowrap"}}>
+                ✦ Optimise Order
+              </button>
+              {optimised && <div style={{fontSize:10, color:"#4ade80", letterSpacing:"0.1em"}}>✓ ORDER OPTIMISED</div>}
+            </div>
+          </div>
+
+          {/* Kit clash warning */}
+          {kitIssues.length>0 && (
+            <div style={{background:"#2d1500", border:"1px solid #f87171", borderRadius:10, padding:"12px 14px", marginBottom:16}}>
+              <div style={{fontSize:11, color:"#fc8181", fontWeight:700, marginBottom:4}}>⚠ Equipment clash — tap Optimise to fix</div>
+              {kitIssues.map((m,i)=><div key={i} style={{fontSize:11, color:"#feb2b2"}}>{m}</div>)}
+            </div>
+          )}
+
+          {/* Selected exercises — ordered list */}
+          {chosen.length>0 && (
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11, color:"#718096", letterSpacing:"0.14em", fontWeight:600, marginBottom:10}}>YOUR CIRCUIT — tap to remove</div>
+              <div style={{display:"flex", flexDirection:"column", gap:6}}>
+                {chosen.map((ex,i)=>{
+                  const tc=TYPE_COLORS[ex.type]||TYPE_COLORS.strength;
+                  return (
+                    <button key={ex.id} onClick={()=>toggleEx(ex)}
+                      style={{display:"flex", alignItems:"center", gap:10, background:"#1a2a1e", border:"1px solid #2d4a35", borderRadius:10, padding:"10px 12px", cursor:"pointer", textAlign:"left", width:"100%"}}>
+                      {/* Tick */}
+                      <div style={{width:22, height:22, borderRadius:6, background:"#4ade80", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:13, fontWeight:700, color:"#042008"}}>✓</div>
+                      {/* GIF thumb */}
+                      <div style={{width:40, height:40, borderRadius:6, overflow:"hidden", flexShrink:0, background:"#0d1525"}}>
+                        {ex.gif&&<img src={ex.gif} alt="" style={{width:"100%", height:"100%", objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>}
+                      </div>
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{fontSize:13, fontWeight:700, color:"#f7fafc", marginBottom:2}}>{String(i+1).padStart(2,"0")}. {ex.name}</div>
+                        <div style={{display:"flex", gap:5, flexWrap:"wrap", alignItems:"center"}}>
+                          <span style={{fontSize:9, color:tc.accent, background:`${tc.accent}20`, padding:"1px 6px", borderRadius:3, letterSpacing:"0.08em", fontWeight:600}}>{tc.label}</span>
+                          {ex.source&&<span style={{fontSize:9, color:SOURCE_COLORS[ex.source]||"#a0aec0", background:`${SOURCE_COLORS[ex.source]||"#a0aec0"}15`, padding:"1px 6px", borderRadius:3, fontWeight:700}}>{ex.source}</span>}
+                          {ex.shared&&<div style={{width:6, height:6, borderRadius:"50%", background:EQUIP_COLORS[ex.shared]}}/>}
+                          <span style={{fontSize:10, color:"#718096"}}>{ex.equipment}</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Divider */}
+          <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:16}}>
+            <div style={{flex:1, height:1, background:"#2d3a50"}}/>
+            <div style={{fontSize:11, color:"#4a5568", letterSpacing:"0.1em"}}>ADD MORE</div>
+            <div style={{flex:1, height:1, background:"#2d3a50"}}/>
+          </div>
+
+          {/* Search */}
+          <input value={reviewSearch} onChange={e=>setReviewSearch(e.target.value)} placeholder="Search exercises…"
+            style={{width:"100%", background:"#1a2035", border:"1px solid #2d3a50", borderRadius:10, padding:"11px 14px", color:"#e8eaed", fontSize:13, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", marginBottom:12}}/>
+
+          {/* Type filter */}
+          <div style={{display:"flex", gap:6, marginBottom:16, flexWrap:"wrap"}}>
+            {["all",...TYPE_OPTIONS].map(t=>{
+              const tc=t==="all"?null:TYPE_COLORS[t]; const on=reviewFilter===t;
+              return <button key={t} onClick={()=>setReviewFilter(t)} style={{padding:"5px 12px", borderRadius:20, fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:"0.08em", cursor:"pointer", textTransform:"uppercase", fontWeight:600, background:on?(tc?tc.accent:"#f7fafc"):"#1a2035", color:on?"#042008":(tc?tc.accent:"#a0aec0"), border:on?"none":`1px solid ${tc?tc.accent+"44":"#2d3a50"}`}}>{t}</button>;
+            })}
+          </div>
+
+          {/* Floating selected counter */}
+          <div style={{position:"fixed", top:16, right:16, zIndex:50, background:"#4ade80", color:"#042008", borderRadius:20, padding:"6px 14px", fontSize:13, fontWeight:700, fontFamily:"'DM Mono',monospace", boxShadow:"0 4px 16px rgba(0,0,0,0.4)", pointerEvents:"none"}}>
+            {chosen.length} selected
+          </div>
+
+          {/* Full exercise library — tap to add */}
+          <div style={{display:"flex", flexDirection:"column", gap:6, marginBottom:24}}>
+            {visibleDb.map(ex=>{
+              const tc=TYPE_COLORS[ex.type]||TYPE_COLORS.strength;
+              const isSelected=selectedIds.has(ex.id);
+              return (
+                <button key={ex.id} onClick={()=>toggleEx(ex)}
+                  style={{display:"flex", alignItems:"center", gap:12, background:isSelected?"#111a10":"#111520", border:`1px solid ${isSelected?"#2d4a35":"#1e2a3a"}`, borderRadius:10, padding:"12px 14px", cursor:"pointer", textAlign:"left", width:"100%"}}>
+                  {/* Checkbox only — no gif square */}
+                  <div style={{width:24, height:24, borderRadius:6, border:`2px solid ${isSelected?"#4ade80":"#3d4a60"}`, background:isSelected?"#4ade80":"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:14, fontWeight:700, color:"#042008", transition:"all 0.15s"}}>
+                    {isSelected?"✓":""}
+                  </div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontSize:14, fontWeight:600, color:isSelected?"#8ab89a":"#f0f4f8", marginBottom:4, lineHeight:1.3}}>{ex.name}</div>
+                    <div style={{display:"flex", gap:6, flexWrap:"wrap", alignItems:"center"}}>
+                      <span style={{fontSize:10, color:tc.accent, background:`${tc.accent}22`, padding:"2px 7px", borderRadius:4, letterSpacing:"0.08em", fontWeight:700}}>{tc.label}</span>
+                      {ex.source&&<span style={{fontSize:10, color:SOURCE_COLORS[ex.source]||"#a0aec0", background:`${SOURCE_COLORS[ex.source]||"#a0aec0"}18`, padding:"2px 7px", borderRadius:4, fontWeight:700}}>{ex.source}</span>}
+                      <span style={{fontSize:11, color:"#8a9bb0"}}>{ex.equipment}</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Equipment summary */}
+          <div style={{...S.card, marginBottom:20}}>
+            <div style={{fontSize:11, color:"#718096", letterSpacing:"0.14em", fontWeight:600, marginBottom:10}}>EQUIPMENT NEEDED</div>
+            {[...new Set(chosen.map(e=>e.equipment))].map(eq=>(
+              <div key={eq} style={{display:"flex", alignItems:"center", gap:8, marginBottom:6}}>
+                <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:eq.includes("Kettle")?EQUIP_COLORS.kettlebell:eq.includes("Med")?EQUIP_COLORS.medball:"#4a5568"}}/>
+                <span style={{fontSize:12, color:"#c8d4e0"}}>{eq}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Test audio */}
+          <button onClick={()=>{
+            try {
+              if (!audioRef.current) audioRef.current = new (window.AudioContext||window.webkitAudioContext)();
+              if (audioRef.current.state==="suspended") audioRef.current.resume();
+              const p=new SpeechSynthesisUtterance(" "); p.volume=0; window.speechSynthesis.speak(p);
+            } catch(e){}
+            beep(880,0.15,0.6,0); beep(1320,0.22,0.6,0.2);
+          }} style={{...S.btnSec, width:"100%", marginBottom:12, textAlign:"center"}}>
+            🔊 Test Audio
+          </button>
+
+          {/* Start */}
+          <button onClick={startSession} disabled={chosen.length===0||kitIssues.length>0}
+            style={{...S.btnPri, background:chosen.length===0||kitIssues.length>0?"#1a2035":"#4ade80", color:chosen.length===0||kitIssues.length>0?"#4a5568":"#042008", cursor:chosen.length===0||kitIssues.length>0?"not-allowed":"pointer"}}>
+            {kitIssues.length>0?"Tap Optimise to fix clashes":chosen.length===0?"Select at least 1 exercise":`Start Session ▶  (${chosen.length} exercises)`}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── DONE ─────────────────────────────────────────────────────────────
+  if (screen==="done") return (
+    <div style={{...S.page, justifyContent:"center", textAlign:"center", minHeight:"100vh"}}>
+      <div style={{fontSize:64, marginBottom:20}}>🏆</div>
+      <div style={{fontSize:42, fontWeight:700, fontFamily:"Georgia,serif", color:"#f7fafc", marginBottom:10}}>Done.</div>
+      <div style={{color:"#718096", fontSize:14, marginBottom:8}}>{numCircuits} circuit{numCircuits>1?"s":""} · {numPeople} person{numPeople>1?"s":""}</div>
+      <div style={{color:"#4ade80", fontSize:15, letterSpacing:"0.08em", marginBottom:48}}>{mm}:{ss} · Great work everyone</div>
+      <button onClick={goHome} style={{...S.btnSec, fontSize:14, padding:"14px 40px", color:"#e2e8f0", borderColor:"#3d4a60"}}>⌂ Home</button>
+    </div>
+  );
+
+  // ── ACTIVE ────────────────────────────────────────────────────────────
+  const people = Array.from({length:numPeople},(_,i)=>{
+    const idx=masterIdx+i;
+    return { name:names[i]||`P${i+1}`, color:PERSON_COLORS[i], slot:idx<seq.length?seq[idx]:null };
+  });
+  const focusData = focusPerson!==null ? people[focusPerson] : null;
+
+  return (
+    <div style={{height:"100vh", background:"#0d0f12", color:"#e8eaed", fontFamily:"'DM Mono','Courier New',monospace", display:"flex", flexDirection:"column", boxSizing:"border-box", position:"relative", overflow:"hidden"}}>
+
+      {/* Ambient glow */}
+      <div style={{position:"fixed", inset:0, zIndex:0, background:isResting?"radial-gradient(ellipse at 50% 0%, #0b2210 0%, #0d0f12 55%)":`radial-gradient(ellipse at 50% 0%, ${mType.bg} 0%, #0d0f12 55%)`, transition:"background 0.7s ease", pointerEvents:"none"}}/>
+
+      {/* ── TOP BAR ── */}
+      <div style={{position:"relative", zIndex:1, display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 18px 0", flexShrink:0}}>
+        <div style={{fontSize:10, letterSpacing:"0.2em", color:"#4a5568", fontWeight:600}}>CIRCUIT TRAINING</div>
+        <div style={{fontSize:13, color:"#718096", fontWeight:600}}>{mm}:{ss}</div>
+      </div>
+      <div style={{position:"relative", zIndex:1, margin:"6px 18px 0", height:2, background:"#1e2a3a", borderRadius:2, overflow:"hidden", flexShrink:0}}>
+        <div style={{height:"100%", width:`${progPct}%`, background:isResting?"#4ade80":mType.accent, transition:"width 1s linear, background 0.5s"}}/>
+      </div>
+      <div style={{position:"relative", zIndex:1, display:"flex", justifyContent:"space-between", padding:"3px 18px 0", fontSize:9, color:"#2d3a50", flexShrink:0}}>
+        <span>SLOT {masterIdx+1}/{totalSlots}</span><span>{Math.round(progPct)}%</span>
+      </div>
+
+      {/* ── TIMER — full width centred on mobile ── */}
+      <div style={{position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:10, flexShrink:0}}>
+        <div style={{position:"relative", width:130, height:130}}>
+          <svg width="130" height="130" style={{transform:"rotate(-90deg)"}}>
+            <circle cx="65" cy="65" r="54" fill="none" stroke="#1e2a3a" strokeWidth="5"/>
+            <circle cx="65" cy="65" r="54" fill="none" stroke={ringColor} strokeWidth="5"
+              strokeDasharray={circ} strokeDashoffset={dash} strokeLinecap="round"
+              style={{transition:"stroke-dashoffset 1s linear, stroke 0.3s"}}/>
+          </svg>
+          <div style={{position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center"}}>
+            <div style={{fontSize:42, fontWeight:700, lineHeight:1, color:ringColor, transition:"color 0.3s", fontFamily:"'DM Mono',monospace"}}>{timeLeft}</div>
+            <div style={{fontSize:10, color:"#718096", letterSpacing:"0.12em", marginTop:4, fontWeight:600}}>
+              {paused?"PAUSED":isResting?"REST":isCD?"FINISH":"GO"}
+            </div>
+          </div>
+        </div>
+
+        {/* Circuit progress dots horizontal under timer */}
+        <div style={{display:"flex", gap:10, marginTop:8}}>
+          {Array.from({length:numCircuits},(_,i)=>{
+            const start=i*chosen.length, end=start+chosen.length-1;
+            const done=masterIdx>end, active=masterIdx>=start&&masterIdx<=end;
+            return (
+              <div key={i} style={{display:"flex", alignItems:"center", gap:4}}>
+                <div style={{width:6, height:6, borderRadius:"50%", background:done?"#4ade80":active?mType.accent:"#2d3a50", transition:"background 0.4s"}}/>
+                <div style={{fontSize:9, color:done?"#4ade80":active?"#e2e8f0":"#3d4a60", letterSpacing:"0.1em", fontWeight:600}}>C{i+1}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── PARTICIPANT TILES — scrollable grid below timer ── */}
+      <div style={{position:"relative", zIndex:1, flex:1, overflowY:"auto", padding:"10px 14px 0", minHeight:0}}>
+        {focusPerson!==null&&focusData ? (
+          <div style={{paddingBottom:8}}>
+            <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:12}}>
+              <button onClick={()=>setFocusPerson(null)} style={{...S.btnSec, padding:"7px 14px", fontSize:11}}>← All</button>
+              <div style={{width:9, height:9, borderRadius:"50%", background:focusData.color}}/>
+              <div style={{fontSize:14, color:"#e2e8f0", fontWeight:600}}>{focusData.name}</div>
+            </div>
+            {focusData.slot
+              ? <PersonCard slot={focusData.slot} color={focusData.color} large isResting={isResting}/>
+              : <div style={{...S.card, textAlign:"center", color:"#718096", fontSize:14, padding:"32px"}}>Session complete</div>
+            }
+          </div>
+        ):(
+          <div style={{
+            display:"grid",
+            gridTemplateColumns: numPeople===1 ? "1fr" : "1fr 1fr",
+            gap:10,
+            paddingBottom:8,
+          }}>
+            {people.map((p,i)=>(
+              <button key={i} onClick={()=>setFocusPerson(i)}
+                style={{background:"transparent", border:"none", padding:0, cursor:"pointer", textAlign:"left", display:"block"}}>
+                <PersonCard slot={p.slot} color={p.color} name={p.name} isResting={isResting} showName/>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── FOOTER — pinned, always visible ── */}
+      <div style={{position:"relative", zIndex:2, display:"flex", gap:10, padding:"10px 14px 20px", flexShrink:0, background:"linear-gradient(to bottom, transparent, #0d0f12 35%)"}}>
+        <button onClick={()=>setPaused(p=>!p)} style={{flex:1, padding:"14px", background:paused?"#4ade80":"#1a2035", color:paused?"#042008":"#a0aec0", border:paused?"none":"1px solid #2d3a50", borderRadius:10, fontSize:13, fontWeight:paused?700:500, fontFamily:"'DM Mono',monospace", letterSpacing:"0.12em", cursor:"pointer", textTransform:"uppercase"}}>
+          {paused?"▶ Resume":"⏸ Pause"}
+        </button>
+        <button onClick={goHome} style={{...S.btnSec, padding:"14px 20px", fontSize:13, color:"#c8d4e0", borderColor:"#3d4a60"}}>
+          ⌂ Home
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Person Card ───────────────────────────────────────────────────────────────
+function PersonCard({ slot, color, name, isResting, large, showName }) {
+  const [gifErr, setGifErr] = useState(false);
+  if (!slot) return (
+    <div style={{background:"#111520", border:"1px solid #1e2a3a", borderRadius:12, padding:"18px", opacity:0.5}}>
+      <div style={{fontSize:12, color:"#718096"}}>Done</div>
+    </div>
+  );
+  const tc = TYPE_COLORS[slot.type]||TYPE_COLORS.strength;
+  return (
+    <div style={{background:"#1a2035", border:`1px solid ${isResting?"#1e4a2e":tc.bg==="#0a0a0a"?"#2d3a50":tc.bg}`, borderRadius:large?16:12, overflow:"hidden", height:"100%", boxSizing:"border-box", transition:"border-color 0.4s"}}>
+
+      {/* GIF banner on large card, small thumb on grid */}
+      {slot.gif && !gifErr && (
+        <div style={{width:"100%", height:large?160:80, background:"#0d1525", overflow:"hidden", position:"relative"}}>
+          <img src={slot.gif} alt={slot.name} onError={()=>setGifErr(true)}
+            style={{width:"100%", height:"100%", objectFit:"cover", opacity:0.85}}/>
+          <div style={{position:"absolute", inset:0, background:"linear-gradient(to bottom, transparent 40%, #1a2035 100%)"}}/>
+          {slot.source&&(
+            <div style={{position:"absolute", top:8, right:8, fontSize:9, color:SOURCE_COLORS[slot.source]||"#a0aec0", background:"rgba(0,0,0,0.6)", padding:"2px 7px", borderRadius:4, letterSpacing:"0.08em", fontWeight:700}}>
+              {slot.source}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{padding:large?"16px 20px 20px":"12px 14px 14px"}}>
+        {showName&&(
+          <div style={{display:"flex", alignItems:"center", gap:7, marginBottom:8}}>
+            <div style={{width:8, height:8, borderRadius:"50%", background:color}}/>
+            <div style={{fontSize:13, color:"#cbd5e0", fontWeight:700, letterSpacing:"0.05em"}}>{name}</div>
+          </div>
+        )}
+
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8, marginBottom:large?10:6}}>
+          <div style={{fontSize:large?20:14, fontWeight:700, lineHeight:1.2, fontFamily:"Georgia,serif", color:"#f7fafc"}}>{slot.label||slot.name}</div>
+          <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0}}>
+            <div style={{background:`${color}25`, border:`1px solid ${color}55`, borderRadius:6, padding:"3px 8px", fontSize:10, color, letterSpacing:"0.06em", textTransform:"uppercase", fontWeight:700}}>
+              {isResting?"REST":tc.label}
+            </div>
+          </div>
+        </div>
+
+        {large&&(<>
+          <div style={{fontSize:14, color:"#cbd5e0", lineHeight:1.7, marginBottom:12, borderLeft:`3px solid ${tc.accent}77`, paddingLeft:12}}>{slot.cues}</div>
+          <div style={{fontSize:12, color:"#a0aec0", marginBottom:6}}>{slot.muscles}</div>
+          <div style={{display:"flex", alignItems:"center", gap:7}}>
+            {slot.shared&&<div style={{width:7, height:7, borderRadius:"50%", background:EQUIP_COLORS[slot.shared]}}/>}
+            <div style={{fontSize:12, color:"#a0aec0"}}>{slot.equipment}</div>
+          </div>
+        </>)}
+
+        {!large&&(<>
+          <div style={{fontSize:11, color:"#a0aec0", marginBottom:5, fontWeight:500}}>{slot.equipment}</div>
+          <div style={{fontSize:11, color:"#8a9bb0", lineHeight:1.5, marginBottom:6}}>{slot.cues?.slice(0,60)}{slot.cues?.length>60?"…":""}</div>
+          <div style={{fontSize:10, color:"#60a5fa", fontWeight:600}}>tap to expand ↗</div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+// ── Timing Slider ─────────────────────────────────────────────────────────────
+function Slider({ label, value, min, max, step, onChange, accent }) {
+  const pct = ((value-min)/(max-min))*100;
+  return (
+    <div>
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10}}>
+        <span style={{fontSize:13, color:"#e2e8f0", letterSpacing:"0.1em", fontWeight:600}}>{label.toUpperCase()}</span>
+        <span style={{fontSize:18, fontWeight:700, color:accent, fontFamily:"'DM Mono',monospace"}}>{fmtSec(value)}</span>
+      </div>
+      <div style={{position:"relative", height:36, display:"flex", alignItems:"center"}}>
+        <div style={{position:"absolute", left:0, right:0, height:4, background:"#2d3a50", borderRadius:2}}/>
+        <div style={{position:"absolute", left:0, width:`${pct}%`, height:4, background:accent, borderRadius:2}}/>
+        <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.target.value))}
+          style={{position:"absolute", left:0, right:0, width:"100%", opacity:0, height:36, cursor:"pointer", margin:0}}/>
+        <div style={{position:"absolute", left:`calc(${pct}% - 11px)`, width:22, height:22, borderRadius:"50%", background:accent, boxShadow:`0 0 10px ${accent}99`, pointerEvents:"none"}}/>
+      </div>
+      <div style={{display:"flex", justifyContent:"space-between", marginTop:5, fontSize:10, color:"#4a5568"}}>
+        <span>{fmtSec(min)}</span><span>{fmtSec(max)}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Admin Screen ──────────────────────────────────────────────────────────────
+const EMPTY_EX = { id:"", name:"", equipment:"", shared:null, cues:"", muscles:"", type:"strength", source:"", gif:"" };
+
+function AdminScreen({ db, setDb, onBack, initAudio, beep }) {
+  const [editing,    setEditing]    = useState(null);
+  const [form,       setForm]       = useState(EMPTY_EX);
+  const [filter,     setFilter]     = useState("all");
+  const [search,     setSearch]     = useState("");
+  const [deleteId,   setDeleteId]   = useState(null);
+  const [addStep,    setAddStep]    = useState("describe");
+  const [nlInput,    setNlInput]    = useState("");
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [llmError,   setLlmError]   = useState("");
+  const [preview,    setPreview]    = useState(null);
+
+  const openNew  = () => { setForm({...EMPTY_EX, id:Date.now().toString(36)}); setNlInput(""); setLlmError(""); setAddStep("describe"); setEditing("new"); };
+  const openEdit = ex => { setForm({...ex}); setEditing(ex.id); setAddStep("review"); };
+  const cancel   = () => { setEditing(null); setForm(EMPTY_EX); setNlInput(""); setLlmError(""); };
+  const save     = () => {
+    if (!form.name.trim()||!form.equipment.trim()) return;
+    setDb(prev=>editing==="new"?[...prev,{...form}]:prev.map(e=>e.id===editing?{...form}:e));
+    cancel();
+  };
+
+  const fillLlm = async () => {
+    if (!nlInput.trim()) return;
+    setLlmLoading(true); setLlmError("");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514", max_tokens:1000,
+          system:`You are a fitness expert familiar with F45, Barry's Bootcamp, Orangetheory, and CrossFit. Given a description of an exercise, return ONLY a JSON object with these fields:
+- name: short exercise name
+- equipment: one of "Bodyweight", "12kg Kettlebell", "4kg Med Ball", "Band (medium)", "Light band", "Band over shoulder", "Glider disc", "Glider discs"
+- shared: null, "kettlebell", or "medball"  
+- muscles: e.g. "Quads · Glutes · Core"
+- cues: 1-2 sentence coaching instruction
+- type: "strength", "cardio", "power", "core", or "mobility"
+- source: which gym this is most associated with: "F45", "Barry's", "Orangetheory", or "CrossFit"
+- gif: leave as empty string ""
+No markdown, no explanation, just the JSON object.`,
+          messages:[{role:"user",content:nlInput}]
+        })
+      });
+      const data = await res.json();
+      const text = (data.content||[]).map(c=>c.text||"").join("");
+      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+      setForm(f=>({...f, ...parsed, id:f.id, gif:parsed.gif||f.gif||""}));
+      setAddStep("review");
+    } catch(e) {
+      setLlmError("Couldn't parse response — fill manually."); setAddStep("review");
+    } finally { setLlmLoading(false); }
+  };
+
+  const filtered = db.filter(ex=>(filter==="all"||ex.type===filter)&&(!search||ex.name.toLowerCase().includes(search.toLowerCase())||ex.equipment.toLowerCase().includes(search.toLowerCase())||(ex.source||"").toLowerCase().includes(search.toLowerCase())));
+
+  const inStyle = {width:"100%", background:"#111825", border:"1px solid #2d3a50", borderRadius:10, padding:"12px 14px", color:"#e8eaed", fontSize:13, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box"};
+
+  return (
+    <div style={S.page}>
+      <div style={{width:"100%", maxWidth:600}}>
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10}}>
+          <button onClick={onBack} style={S.btnSec}>← Back</button>
+          <div style={{fontSize:11, letterSpacing:"0.2em", color:"#718096", fontWeight:600}}>EXERCISE ADMIN</div>
+          <button onClick={openNew} style={{background:"#4ade80", color:"#042008", border:"none", borderRadius:8, fontSize:12, fontWeight:700, padding:"9px 16px", fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>+ ADD</button>
+        </div>
+        <div style={{...S.h1, fontSize:26, marginBottom:20}}>
+          Exercise Library<br/>
+          <span style={{fontSize:13, color:"#718096", fontFamily:"'DM Mono',monospace", fontWeight:400}}>{db.length} exercises</span>
+        </div>
+
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, equipment or gym…"
+          style={{...inStyle, marginBottom:14}}/>
+
+        <div style={{display:"flex", gap:7, marginBottom:22, flexWrap:"wrap"}}>
+          {["all",...TYPE_OPTIONS].map(t=>{const tc=t==="all"?null:TYPE_COLORS[t],on=filter===t;return(
+            <button key={t} onClick={()=>setFilter(t)} style={{padding:"6px 13px", borderRadius:20, fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:"0.08em", cursor:"pointer", textTransform:"uppercase", fontWeight:600, background:on?(tc?tc.accent:"#f7fafc"):"#1a2035", color:on?"#042008":(tc?tc.accent:"#a0aec0"), border:on?"none":`1px solid ${tc?tc.accent+"44":"#2d3a50"}`}}>{t}</button>
+          );})}
+        </div>
+
+        <div style={{display:"flex", flexDirection:"column", gap:10, marginBottom:24}}>
+          {filtered.map(ex=>{const tc=TYPE_COLORS[ex.type]||TYPE_COLORS.strength; return(
+            <div key={ex.id} style={{background:"#1a2035", border:"1px solid #2d3a50", borderRadius:12, overflow:"hidden"}}>
+              <div style={{display:"flex", gap:0}}>
+                {/* GIF thumb */}
+                {ex.gif&&(
+                  <div style={{width:72, flexShrink:0, background:"#0d1525", cursor:"pointer"}} onClick={()=>setPreview(ex)}>
+                    <img src={ex.gif} alt={ex.name} style={{width:"100%", height:"100%", objectFit:"cover", display:"block"}}
+                      onError={e=>{e.target.parentElement.style.display="none";}}/>
+                  </div>
+                )}
+                <div style={{flex:1, padding:"14px"}}>
+                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8}}>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap"}}>
+                        <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:ex.shared?(EQUIP_COLORS[ex.shared]||"#4a5568"):"#4a5568"}}/>
+                        <div style={{fontSize:15, fontWeight:700, color:"#f0f4f8"}}>{ex.name}</div>
+                        <div style={{fontSize:9, color:tc.accent, background:`${tc.accent}20`, padding:"2px 7px", borderRadius:4, letterSpacing:"0.08em", fontWeight:600}}>{tc.label}</div>
+                        {ex.source&&<div style={{fontSize:9, color:SOURCE_COLORS[ex.source]||"#a0aec0", background:`${SOURCE_COLORS[ex.source]||"#a0aec0"}18`, padding:"2px 7px", borderRadius:4, letterSpacing:"0.06em", fontWeight:700}}>{ex.source}</div>}
+                      </div>
+                      <div style={{fontSize:12, color:"#a0aec0", marginBottom:3}}>{ex.equipment}{ex.shared?` · shared: ${ex.shared}`:""}</div>
+                      <div style={{fontSize:11, color:"#718096", lineHeight:1.5}}>{ex.muscles}</div>
+                    </div>
+                    <div style={{display:"flex", gap:6, flexShrink:0}}>
+                      <button onClick={()=>openEdit(ex)} style={{background:"#1e2a3a", border:"1px solid #2d3a50", borderRadius:7, color:"#a0aec0", fontSize:11, padding:"6px 10px", fontFamily:"'DM Mono',monospace", cursor:"pointer", fontWeight:600}}>Edit</button>
+                      <button onClick={()=>setDeleteId(ex.id)} style={{background:"#2d1010", border:"1px solid #f8717144", borderRadius:7, color:"#fc8181", fontSize:11, padding:"6px 10px", fontFamily:"'DM Mono',monospace", cursor:"pointer", fontWeight:600}}>✕</button>
+                    </div>
+                  </div>
+                  {ex.cues&&<div style={{fontSize:11, color:"#718096", marginTop:8, paddingTop:8, borderTop:"1px solid #1e2a3a", lineHeight:1.6}}>{ex.cues}</div>}
+                </div>
+              </div>
+            </div>
+          );})}
+          {filtered.length===0&&<div style={{textAlign:"center", color:"#4a5568", fontSize:13, padding:"36px 0"}}>No exercises found</div>}
+        </div>
+      </div>
+
+      {/* GIF Preview Modal */}
+      {preview&&(
+        <div style={{position:"fixed", inset:0, background:"#0d0f12ee", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={()=>setPreview(null)}>
+          <div style={{background:"#1a2035", borderRadius:16, overflow:"hidden", maxWidth:400, width:"100%"}}>
+            <img src={preview.gif} alt={preview.name} style={{width:"100%", display:"block"}}/>
+            <div style={{padding:"14px 18px"}}>
+              <div style={{fontSize:16, fontWeight:700, color:"#f7fafc", marginBottom:4}}>{preview.name}</div>
+              <div style={{fontSize:13, color:"#a0aec0", lineHeight:1.6}}>{preview.cues}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      {editing!==null&&(
+        <div style={{position:"fixed", inset:0, background:"#0d0f12f0", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center"}} onClick={cancel}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1a2035", border:"1px solid #2d3a50", borderRadius:"18px 18px 0 0", padding:"26px 22px 44px", width:"100%", maxWidth:600, maxHeight:"92vh", overflowY:"auto", boxSizing:"border-box"}}>
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22}}>
+              <div style={{fontSize:16, fontWeight:700, color:"#f7fafc"}}>{editing==="new"?(addStep==="describe"?"Describe Exercise":"Review & Edit"):"Edit Exercise"}</div>
+              {editing==="new"&&addStep==="review"&&<button onClick={()=>{setAddStep("describe");setLlmError("");}} style={{...S.btnSec, fontSize:11, padding:"6px 12px"}}>← Re-describe</button>}
+            </div>
+
+            {editing==="new"&&addStep==="describe"&&(
+              <div>
+                <div style={{background:"#111825", border:"1px solid #3d4a60", borderRadius:10, padding:"16px", marginBottom:20}}>
+                  <div style={{fontSize:11, color:"#60a5fa", letterSpacing:"0.14em", marginBottom:8, fontWeight:700}}>✦ AI FILL</div>
+                  <div style={{fontSize:13, color:"#a0aec0", lineHeight:1.7}}>Describe the exercise in plain English — AI fills all fields including which gym it's associated with.</div>
+                </div>
+                <div style={{marginBottom:18}}>
+                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:10, fontWeight:600}}>DESCRIBE THE EXERCISE</div>
+                  <textarea value={nlInput} onChange={e=>setNlInput(e.target.value)} rows={5}
+                    placeholder={'e.g. "F45 favourite — a kettlebell swing where you hinge at hips and drive the bell to shoulder height"\n\nor: "Barry\'s treadmill interval — 30 second all-out sprint at high incline"'}
+                    style={{...inStyle, resize:"vertical", lineHeight:1.65}} autoFocus/>
+                </div>
+                {llmError&&<div style={{background:"#2d1000", border:"1px solid #f87171", borderRadius:8, padding:"11px 14px", fontSize:12, color:"#fc8181", marginBottom:14}}>{llmError}</div>}
+                <div style={{display:"flex", gap:10}}>
+                  <button onClick={cancel} style={{...S.btnSec, flex:1, textAlign:"center"}}>Cancel</button>
+                  <button onClick={fillLlm} disabled={!nlInput.trim()||llmLoading}
+                    style={{flex:2, padding:"14px", borderRadius:10, border:"none", background:!nlInput.trim()||llmLoading?"#1e2a3a":"#60a5fa", color:!nlInput.trim()||llmLoading?"#4a5568":"#042008", fontSize:13, fontWeight:700, letterSpacing:"0.1em", fontFamily:"'DM Mono',monospace", cursor:!nlInput.trim()||llmLoading?"not-allowed":"pointer", textTransform:"uppercase", display:"flex", alignItems:"center", justifyContent:"center", gap:8}}>
+                    {llmLoading?<><Spinner/>Thinking…</>:"✦ Fill with AI"}
+                  </button>
+                </div>
+                <button onClick={()=>setAddStep("review")} style={{width:"100%", marginTop:12, background:"transparent", border:"none", color:"#4a5568", fontSize:12, fontFamily:"'DM Mono',monospace", cursor:"pointer", textDecoration:"underline"}}>Skip — fill manually</button>
+              </div>
+            )}
+
+            {(editing!=="new"||addStep==="review")&&(
+              <div>
+                {editing==="new"&&!llmError&&form.name&&<div style={{background:"#0a2010", border:"1px solid #4ade8066", borderRadius:8, padding:"11px 14px", marginBottom:18, fontSize:13, color:"#68d391"}}>✓ Fields filled — review and adjust as needed</div>}
+
+                {[["Name","name",""],["Equipment","equipment","e.g. 12kg Kettlebell"],["Muscles","muscles","e.g. Quads · Glutes · Core"],["GIF URL (optional)","gif","https://media.giphy.com/…"]].map(([l,k,ph])=>(
+                  <div key={k} style={{marginBottom:16}}>
+                    <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>{l.toUpperCase()}</div>
+                    <input value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={inStyle}/>
+                  </div>
+                ))}
+                {form.gif&&<div style={{marginBottom:16, borderRadius:8, overflow:"hidden"}}><img src={form.gif} alt="preview" style={{width:"100%", maxHeight:160, objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/></div>}
+
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>CUES</div>
+                  <textarea value={form.cues} onChange={e=>setForm(f=>({...f,cues:e.target.value}))} placeholder="Coaching cue shown during session…" rows={3} style={{...inStyle, resize:"vertical"}}/>
+                </div>
+
+                <div style={{marginBottom:18}}>
+                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:10, fontWeight:600}}>TYPE</div>
+                  <div style={{display:"flex", gap:7, flexWrap:"wrap"}}>
+                    {TYPE_OPTIONS.map(t=>{const tc=TYPE_COLORS[t],on=form.type===t;return(
+                      <button key={t} onClick={()=>setForm(f=>({...f,type:t}))} style={{padding:"7px 13px", borderRadius:20, fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:"0.08em", cursor:"pointer", textTransform:"uppercase", fontWeight:600, background:on?tc.accent:"#1e2a3a", color:on?"#042008":tc.accent, border:on?"none":`1px solid ${tc.accent}44`}}>{t}</button>
+                    );})}
+                  </div>
+                </div>
+
+                <div style={{marginBottom:18}}>
+                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:10, fontWeight:600}}>GYM SOURCE</div>
+                  <div style={{display:"flex", gap:7, flexWrap:"wrap"}}>
+                    {[null,"F45","Barry's","Orangetheory","CrossFit"].map(s=>{const on=form.source===s||(s===null&&!form.source);return(
+                      <button key={String(s)} onClick={()=>setForm(f=>({...f,source:s||""}))} style={{padding:"7px 13px", borderRadius:20, fontSize:11, fontFamily:"'DM Mono',monospace", cursor:"pointer", fontWeight:600, background:on?(SOURCE_COLORS[s]||"#f7fafc"):"#1e2a3a", color:on?"#fff":"#a0aec0", border:on?"none":`1px solid ${SOURCE_COLORS[s]?SOURCE_COLORS[s]+"44":"#2d3a50"}`}}>{s||"None"}</button>
+                    );})}
+                  </div>
+                </div>
+
+                <div style={{marginBottom:22}}>
+                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:10, fontWeight:600}}>SHARED EQUIPMENT</div>
+                  <div style={{display:"flex", gap:9}}>
+                    {[null,"kettlebell","medball"].map(s=>(
+                      <button key={String(s)} onClick={()=>setForm(f=>({...f,shared:s}))} style={{flex:1, padding:"9px", borderRadius:9, fontSize:12, fontFamily:"'DM Mono',monospace", cursor:"pointer", fontWeight:600, background:form.shared===s?"#f7fafc":"#1e2a3a", color:form.shared===s?"#042008":"#a0aec0", border:form.shared===s?"none":"1px solid #2d3a50"}}>{s===null?"None":s}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{display:"flex", gap:10}}>
+                  <button onClick={cancel} style={{...S.btnSec, flex:1, textAlign:"center"}}>Cancel</button>
+                  <button onClick={save} disabled={!form.name.trim()||!form.equipment.trim()} style={{flex:2, padding:"14px", borderRadius:10, border:"none", background:!form.name.trim()||!form.equipment.trim()?"#1e2a3a":"#4ade80", color:!form.name.trim()||!form.equipment.trim()?"#4a5568":"#042008", fontSize:13, fontWeight:700, letterSpacing:"0.1em", fontFamily:"'DM Mono',monospace", cursor:"pointer", textTransform:"uppercase"}}>
+                    {editing==="new"?"Add Exercise":"Save Changes"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {deleteId&&(
+        <div style={{position:"fixed", inset:0, background:"#0d0f12cc", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={()=>setDeleteId(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1a2035", border:"1px solid #2d3a50", borderRadius:16, padding:"30px 26px", width:"100%", maxWidth:360, textAlign:"center"}}>
+            <div style={{fontSize:17, fontWeight:700, color:"#f7fafc", marginBottom:10}}>Delete exercise?</div>
+            <div style={{fontSize:13, color:"#a0aec0", marginBottom:26}}>{db.find(e=>e.id===deleteId)?.name}</div>
+            <div style={{display:"flex", gap:10}}>
+              <button onClick={()=>setDeleteId(null)} style={{...S.btnSec, flex:1, textAlign:"center"}}>Cancel</button>
+              <button onClick={()=>{setDb(p=>p.filter(e=>e.id!==deleteId));setDeleteId(null);}} style={{flex:1, padding:"12px", borderRadius:9, border:"none", background:"#f87171", color:"#042008", fontSize:13, fontWeight:700, fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Spinner() {
+  return <svg width="14" height="14" viewBox="0 0 14 14" style={{animation:"spin 0.8s linear infinite"}}><style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style><circle cx="7" cy="7" r="5" fill="none" stroke="#042008" strokeWidth="2" strokeDasharray="20 10"/></svg>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(CircuitTrainer));
+</script></body></html>
