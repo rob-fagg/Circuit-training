@@ -90,31 +90,31 @@ const TYPE_OPTIONS  = ["strength","cardio","power","core","mobility"];
 const EQUIP_COLORS  = { kettlebell:"#f87171", medball:"#c084fc" };
 const PERSON_COLORS = ["#60a5fa","#f472b6","#34d399","#fb923c"];
 
-const EQUIP_GROUPS = [
-  { id:"kettlebell", label:"Kettlebell",      color:"#f87171" },
-  { id:"medball",    label:"Med Ball",         color:"#c084fc" },
-  { id:"bands",      label:"Resistance Bands", color:"#60a5fa" },
-  { id:"gliders",    label:"Gliders",          color:"#fb923c" },
+const INITIAL_EQUIP_DB = [
+  { id:"eq_body",       label:"Bodyweight",         sharedGroup:null,          alwaysAvail:true  },
+  { id:"eq_kb",         label:"12kg Kettlebell",     sharedGroup:"kettlebell",  alwaysAvail:false },
+  { id:"eq_mb",         label:"4kg Med Ball",        sharedGroup:"medball",     alwaysAvail:false },
+  { id:"eq_band_med",   label:"Band (medium)",       sharedGroup:null,          alwaysAvail:false },
+  { id:"eq_band_light", label:"Light band",          sharedGroup:null,          alwaysAvail:false },
+  { id:"eq_band_shld",  label:"Band over shoulder",  sharedGroup:null,          alwaysAvail:false },
+  { id:"eq_glider1",    label:"Glider disc",         sharedGroup:null,          alwaysAvail:false },
+  { id:"eq_glider2",    label:"Glider discs",        sharedGroup:null,          alwaysAvail:false },
 ];
 
-function getEquipGroup(ex) {
-  if (ex.shared === "kettlebell") return "kettlebell";
-  if (ex.shared === "medball")    return "medball";
-  const eq = (ex.equipment||"").toLowerCase();
-  if (eq.includes("band"))   return "bands";
-  if (eq.includes("glider")) return "gliders";
-  return null;
+function getExEquipItem(ex, equipDb) {
+  return equipDb.find(e => e.label === ex.equipment) || null;
+}
+function isExAvail(ex, availEquip, equipDb) {
+  const item = getExEquipItem(ex, equipDb);
+  return !item || item.alwaysAvail || availEquip.has(item.id);
 }
 
-function isExAvail(ex, availEquip) {
-  const g = getEquipGroup(ex);
-  return g === null || availEquip.has(g);
-}
-
-function buildSequence(exercises, numCircuits) {
+function buildSequence(exercises, numCircuits, numPeople) {
   const seq = [];
   for (let c = 0; c < numCircuits; c++)
     exercises.forEach((ex,i) => seq.push({ ...ex, circuit:c+1, slotInCircuit:i }));
+  for (let p = 0; p < numPeople - 1; p++)
+    seq.push({ ...seq[0], _padding:true });
   return seq;
 }
 function validateSharedKit(exercises) {
@@ -232,8 +232,18 @@ function CircuitTrainer() {
   const [availEquip,   setAvailEquip]   = useState(() => {
     try {
       const s = localStorage.getItem("ct_avail_equip");
-      return s ? new Set(JSON.parse(s)) : new Set(["kettlebell","medball","bands","gliders"]);
-    } catch { return new Set(["kettlebell","medball","bands","gliders"]); }
+      if (s) {
+        const parsed = JSON.parse(s);
+        // Migrate old group-id format to item-id format
+        const isOldFormat = parsed.some(id => ["kettlebell","medball","bands","gliders"].includes(id));
+        if (!isOldFormat) return new Set(parsed);
+      }
+    } catch {}
+    return new Set(INITIAL_EQUIP_DB.filter(e=>!e.alwaysAvail).map(e=>e.id));
+  });
+  const [equipDb, setEquipDb] = useState(() => {
+    try { const s=localStorage.getItem("ct_equip_db"); return s?JSON.parse(s):INITIAL_EQUIP_DB; }
+    catch { return INITIAL_EQUIP_DB; }
   });
   const timerRef  = useRef(null);
   const seqRef    = useRef([]);
@@ -243,6 +253,9 @@ function CircuitTrainer() {
   useEffect(() => {
     localStorage.setItem("ct_avail_equip", JSON.stringify([...availEquip]));
   }, [availEquip]);
+  useEffect(() => {
+    localStorage.setItem("ct_equip_db", JSON.stringify(equipDb));
+  }, [equipDb]);
 
   function toggleEquip(id) {
     setAvailEquip(prev => {
@@ -345,7 +358,7 @@ function CircuitTrainer() {
 
   useEffect(() => {
     if (phase==="work") spokenRef.current=new Set();
-    if (screen==="active"&&phase==="work"&&!paused) playStart();
+    if (screen==="active"&&phase==="work"&&!paused) { playStart(); speak("Go!", 1.2); }
   }, [phase, masterIdx]);
 
   const stopTimer = () => { if (timerRef.current) clearInterval(timerRef.current); };
@@ -367,8 +380,8 @@ function CircuitTrainer() {
 
   const startSession = () => {
     initAudio();
-    seqRef.current = buildSequence(chosen, numCircuits);
-    setMasterIdx(0); setElapsed(0); setTimeLeft(workSec);
+    seqRef.current = buildSequence(chosen, numCircuits, numPeople);
+    setMasterIdx(numPeople - 1); setElapsed(0); setTimeLeft(workSec);
     setPhase("work"); setFocusPerson(null); setPaused(false);
     setScreen("active");
   };
@@ -381,7 +394,7 @@ function CircuitTrainer() {
   const libAvail  = db.filter(ex=>!chosen.find(c=>c.id===ex.id));
   const estMins   = Math.round(numCircuits*chosen.length*(workSec+restSec)/60);
 
-  if (screen==="admin") return <AdminScreen db={db} setDb={setDb} onBack={()=>setScreen("setup")} initAudio={initAudio} beep={beep} availEquip={availEquip} toggleEquip={toggleEquip}/>;
+  if (screen==="admin") return <AdminScreen db={db} setDb={setDb} onBack={()=>setScreen("setup")} initAudio={initAudio} beep={beep} availEquip={availEquip} toggleEquip={toggleEquip} equipDb={equipDb} setEquipDb={setEquipDb}/>;
 
   // ── SETUP ────────────────────────────────────────────────────────────
   if (screen==="setup") return (
@@ -408,20 +421,19 @@ function CircuitTrainer() {
           <div style={{display:"flex", gap:10}}>{[1,2,3,4].map(n=><button key={n} onClick={()=>setNumPeople(n)} style={S.seg(numPeople===n, "#4ade80")}>{n}</button>)}</div>
         </div>
 
-        {numPeople>1&&(
-          <div style={{marginBottom:28}}>
-            <div style={S.label}>Names (optional)</div>
-            <div style={{display:"grid", gridTemplateColumns:numPeople>2?"1fr 1fr":"1fr", gap:10}}>
-              {Array.from({length:numPeople},(_,i)=>(
-                <div key={i} style={{display:"flex", alignItems:"center", gap:10, background:"#1a2035", border:"1px solid #2d3a50", borderRadius:10, padding:"11px 14px"}}>
-                  <input value={names[i]} onChange={e=>{const n=[...names];n[i]=e.target.value;setNames(n);}} maxLength={10}
-                    placeholder={`Person ${i+1}`}
-                    style={{background:"transparent", border:"none", outline:"none", color:"#e8eaed", fontSize:14, fontFamily:"'DM Mono',monospace", width:"100%"}}/>
-                </div>
-              ))}
-            </div>
+        <div style={{marginBottom:28}}>
+          <div style={S.label}>Names (optional)</div>
+          <div style={{display:"grid", gridTemplateColumns:numPeople>2?"1fr 1fr":"1fr", gap:10}}>
+            {Array.from({length:numPeople},(_,i)=>(
+              <div key={i} style={{display:"flex", alignItems:"center", gap:10, background:"#1a2035", border:"1px solid #2d3a50", borderRadius:10, padding:"11px 14px"}}>
+                <div style={{width:22, height:22, borderRadius:6, background:PERSON_COLORS[i], display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#042008", flexShrink:0}}>{i+1}</div>
+                <input value={names[i]} onChange={e=>{const n=[...names];n[i]=e.target.value;setNames(n);}} maxLength={10}
+                  placeholder={`Person ${i+1}`}
+                  style={{background:"transparent", border:"none", outline:"none", color:"#e8eaed", fontSize:14, fontFamily:"'DM Mono',monospace", width:"100%"}}/>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
         <div style={{marginBottom:28}}>
           <div style={S.label}>Interval Timing</div>
@@ -433,30 +445,25 @@ function CircuitTrainer() {
 
         <div style={{marginBottom:28}}>
           <div style={S.label}>Equipment</div>
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
-            {EQUIP_GROUPS.map(g => {
-              const on = availEquip.has(g.id);
+          <div style={{display:"flex", flexDirection:"column", gap:6}}>
+            {equipDb.filter(e=>!e.alwaysAvail).map(item => {
+              const on = availEquip.has(item.id);
               return (
-                <button key={g.id} onClick={()=>toggleEquip(g.id)} style={{
-                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                <button key={item.id} onClick={()=>toggleEquip(item.id)} style={{
+                  display:"flex", alignItems:"center", gap:12,
                   padding:"10px 14px", borderRadius:10,
                   background: on ? "#0a2a1a" : "#111520",
                   border: `1px solid ${on ? "#4ade8055" : "#2d3a50"}`,
-                  cursor:"pointer"
+                  cursor:"pointer", textAlign:"left"
                 }}>
-                  <div style={{fontSize:12, fontWeight:700, color: on?"#4ade80":"#4a5568"}}>{g.label}</div>
-                  <div style={{
-                    width:20, height:20, borderRadius:5,
-                    background: on ? "#4ade80" : "transparent",
-                    border: `2px solid ${on ? "#4ade80" : "#3d4a60"}`,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:12, fontWeight:700, color:"#042008"
-                  }}>{on?"✓":""}</div>
+                  <div style={{width:20, height:20, borderRadius:5, background: on?"#4ade80":"transparent", border:`2px solid ${on?"#4ade80":"#3d4a60"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#042008", flexShrink:0}}>{on?"✓":""}</div>
+                  <div style={{fontSize:12, fontWeight:700, color: on?"#4ade80":"#4a5568", flex:1}}>{item.label}</div>
+                  {item.sharedGroup && <div style={{fontSize:10, color:"#4a5568", letterSpacing:"0.08em"}}>shared</div>}
                 </button>
               );
             })}
           </div>
-          <div style={{fontSize:11, color:"#4a5568", marginTop:8}}>Bodyweight exercises are always included.</div>
+          <div style={{fontSize:11, color:"#4a5568", marginTop:8}}>Bodyweight always included. Add equipment in ⚙ Admin → Equipment.</div>
         </div>
 
         <div style={{...S.card, marginBottom:28, lineHeight:2.1}}>
@@ -498,7 +505,7 @@ function CircuitTrainer() {
     };
 
     const visibleDb = db.filter(ex => {
-      if (!showUnavail && !isExAvail(ex, availEquip)) return false;
+      if (!showUnavail && !isExAvail(ex, availEquip, equipDb)) return false;
       if (reviewFilter!=="all" && ex.type!==reviewFilter) return false;
       if (reviewSearch && !ex.name.toLowerCase().includes(reviewSearch.toLowerCase()) && !ex.equipment.toLowerCase().includes(reviewSearch.toLowerCase())) return false;
       return true;
@@ -545,7 +552,7 @@ function CircuitTrainer() {
               <div style={{display:"flex", flexDirection:"column", gap:6}}>
                 {chosen.map((ex,i)=>{
                   const tc=TYPE_COLORS[ex.type]||TYPE_COLORS.strength;
-                  const avail=isExAvail(ex, availEquip);
+                  const avail=isExAvail(ex, availEquip, equipDb);
                   return (
                     <button key={ex.id} onClick={()=>toggleEx(ex)}
                       style={{display:"flex", alignItems:"center", gap:10, background:"#1a2a1e", border:"1px solid #2d4a35", borderRadius:10, padding:"10px 12px", cursor:"pointer", textAlign:"left", width:"100%"}}>
@@ -609,8 +616,8 @@ function CircuitTrainer() {
             {visibleDb.map(ex=>{
               const tc=TYPE_COLORS[ex.type]||TYPE_COLORS.strength;
               const isSelected=selectedIds.has(ex.id);
-              const avail=isExAvail(ex, availEquip);
-              const exGroup=EQUIP_GROUPS.find(g=>g.id===getEquipGroup(ex));
+              const avail=isExAvail(ex, availEquip, equipDb);
+              const exItem=getExEquipItem(ex, equipDb);
               return (
                 <button key={ex.id} onClick={()=>toggleEx(ex)}
                   style={{display:"flex", alignItems:"center", gap:12, background:isSelected?"#111a10":"#111520", border:`1px solid ${isSelected?"#2d4a35":"#1e2a3a"}`, borderRadius:10, padding:"12px 14px", cursor:"pointer", textAlign:"left", width:"100%", opacity:avail?1:0.45}}>
@@ -624,7 +631,7 @@ function CircuitTrainer() {
                       <span style={{fontSize:10, color:tc.accent, background:`${tc.accent}22`, padding:"2px 7px", borderRadius:4, letterSpacing:"0.08em", fontWeight:700}}>{tc.label}</span>
                       <span style={{fontSize:11, color:"#8a9bb0"}}>{ex.equipment}</span>
                       {!avail&&(
-                        <span style={{fontSize:9, color:"#f87171", background:"#f8717120", padding:"2px 6px", borderRadius:3, fontWeight:600}}>⊘ {exGroup?.label}</span>
+                        <span style={{fontSize:9, color:"#f87171", background:"#f8717120", padding:"2px 6px", borderRadius:3, fontWeight:600}}>⊘ {exItem?.label||ex.equipment}</span>
                       )}
                     </div>
                   </div>
@@ -637,12 +644,11 @@ function CircuitTrainer() {
           <div style={{...S.card, marginBottom:20}}>
             <div style={{fontSize:11, color:"#718096", letterSpacing:"0.14em", fontWeight:600, marginBottom:10}}>EQUIPMENT NEEDED</div>
             {[...new Set(chosen.map(e=>e.equipment))].map(eq=>{
-              const eql = eq.toLowerCase();
-              const grp = eql.includes("kettle")?"kettlebell": eql.includes("med ball")?"medball": eql.includes("band")?"bands": eql.includes("glider")?"gliders": null;
-              const missing = grp && !availEquip.has(grp);
+              const item = equipDb.find(e=>e.label===eq);
+              const missing = item && !item.alwaysAvail && !availEquip.has(item.id);
               return (
                 <div key={eq} style={{display:"flex", alignItems:"center", gap:8, marginBottom:6}}>
-                  <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:eq.includes("Kettle")?EQUIP_COLORS.kettlebell:eq.includes("Med")?EQUIP_COLORS.medball:"#4a5568"}}/>
+                  <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:item?.sharedGroup==="kettlebell"?EQUIP_COLORS.kettlebell:item?.sharedGroup==="medball"?EQUIP_COLORS.medball:"#4a5568"}}/>
                   <span style={{fontSize:12, color: missing?"#fb923c":"#c8d4e0"}}>{eq}</span>
                   {missing&&<span style={{fontSize:9, color:"#fb923c", background:"#fb923c20", padding:"2px 5px", borderRadius:3, fontWeight:600}}>⚠ not available</span>}
                 </div>
@@ -685,8 +691,10 @@ function CircuitTrainer() {
 
   // ── ACTIVE ────────────────────────────────────────────────────────────
   const people = Array.from({length:numPeople},(_,i)=>{
-    const idx=masterIdx+i;
-    return { name:names[i]||`P${i+1}`, color:PERSON_COLORS[i], slot:idx<seq.length?seq[idx]:null };
+    const idx = masterIdx - i;
+    const slot = idx >= 0 && idx < seq.length ? seq[idx] : null;
+    return { name:names[i]||`P${i+1}`, color:PERSON_COLORS[i],
+             slot: (slot && !slot._padding) ? slot : null };
   });
   const focusData = focusPerson!==null ? people[focusPerson] : null;
 
@@ -710,7 +718,7 @@ function CircuitTrainer() {
         <div style={{height:"100%", width:`${progPct}%`, background:isResting?"#4ade80":mType.accent, transition:"width 1s linear, background 0.5s"}}/>
       </div>
       <div style={{position:"relative", zIndex:1, display:"flex", justifyContent:"space-between", padding:"3px 18px 0", fontSize:9, color:"#2d3a50", flexShrink:0}}>
-        <span>SLOT {masterIdx+1}/{totalSlots}</span><span>{Math.round(progPct)}%</span>
+        <span>SLOT {Math.max(1,masterIdx-(numPeople-1)+1)}/{Math.max(1,totalSlots-(numPeople-1))}</span><span>{Math.round(progPct)}%</span>
       </div>
 
       {/* ── TIMER — full width centred on mobile ── */}
@@ -733,8 +741,9 @@ function CircuitTrainer() {
         {/* Circuit progress dots horizontal under timer */}
         <div style={{display:"flex", gap:10, marginTop:8}}>
           {Array.from({length:numCircuits},(_,i)=>{
+            const p1idx = masterIdx - (numPeople-1);
             const start=i*chosen.length, end=start+chosen.length-1;
-            const done=masterIdx>end, active=masterIdx>=start&&masterIdx<=end;
+            const done=p1idx>end, active=p1idx>=start&&p1idx<=end;
             return (
               <div key={i} style={{display:"flex", alignItems:"center", gap:4}}>
                 <div style={{width:6, height:6, borderRadius:"50%", background:done?"#4ade80":active?mType.accent:"#2d3a50", transition:"background 0.4s"}}/>
@@ -775,7 +784,7 @@ function CircuitTrainer() {
           }}>
             {people.map((p,i)=>(
               <div key={i} style={{display:"flex", flexDirection:"column"}}>
-                <div style={{fontSize:11, fontWeight:700, color:"#a0aec0", letterSpacing:"0.12em", textTransform:"uppercase", paddingBottom:5, paddingLeft:2}}>{p.name}</div>
+                <div style={{fontSize:14, fontWeight:700, color:p.color, letterSpacing:"0.1em", textTransform:"uppercase", paddingBottom:5, paddingLeft:8, borderLeft:`3px solid ${p.color}`, marginBottom:4}}>{p.name}</div>
                 <button onClick={()=>setFocusPerson(i)}
                   style={{background:"transparent", border:"none", padding:0, cursor:"pointer", textAlign:"left", display:"block", flex:1}}>
                   <PersonCard slot={p.slot} isResting={isResting}/>
@@ -876,7 +885,8 @@ function Slider({ label, value, min, max, step, onChange, accent }) {
 // ── Admin Screen ──────────────────────────────────────────────────────────────
 const EMPTY_EX = { id:"", name:"", equipment:"", shared:null, cues:"", muscles:"", type:"strength", gif:"" };
 
-function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEquip }) {
+function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEquip, equipDb, setEquipDb }) {
+  const [adminTab,    setAdminTab]   = useState("exercises");
   const [editing,    setEditing]    = useState(null);
   const [form,       setForm]       = useState(EMPTY_EX);
   const [filter,     setFilter]     = useState("all");
@@ -887,6 +897,8 @@ function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEqu
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmError,   setLlmError]   = useState("");
   const [preview,    setPreview]    = useState(null);
+  const [newEquipName,   setNewEquipName]   = useState("");
+  const [newEquipShared, setNewEquipShared] = useState("");
 
   const openNew  = () => { setForm({...EMPTY_EX, id:Date.now().toString(36)}); setNlInput(""); setLlmError(""); setAddStep("describe"); setEditing("new"); };
   const openEdit = ex => { setForm({...ex}); setEditing(ex.id); setAddStep("review"); };
@@ -908,8 +920,8 @@ function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEqu
           model:"claude-sonnet-4-20250514", max_tokens:1000,
           system:`You are a fitness expert. Given a description of an exercise, return ONLY a JSON object with these fields:
 - name: short exercise name
-- equipment: one of "Bodyweight", "12kg Kettlebell", "4kg Med Ball", "Band (medium)", "Light band", "Band over shoulder", "Glider disc", "Glider discs"
-- shared: null, "kettlebell", or "medball"
+- equipment: one of ${equipDb.map(e=>JSON.stringify(e.label)).join(", ")}
+- shared: null${equipDb.filter(e=>e.sharedGroup).map(e=>`, "${e.sharedGroup}"`).filter((v,i,a)=>a.indexOf(v)===i).join("")}
 - muscles: e.g. "Quads · Glutes · Core"
 - cues: 1-2 sentence coaching instruction
 - type: "strength", "cardio", "power", "core", or "mobility"
@@ -932,50 +944,94 @@ No markdown, no explanation, just the JSON object.`,
 
   const inStyle = {width:"100%", background:"#111825", border:"1px solid #2d3a50", borderRadius:10, padding:"12px 14px", color:"#e8eaed", fontSize:13, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box"};
 
+  const addEquipItem = () => {
+    const label = newEquipName.trim();
+    if (!label) return;
+    const sg = newEquipShared.trim() || null;
+    const newItem = { id: Date.now().toString(36), label, sharedGroup: sg, alwaysAvail: false };
+    setEquipDb(prev => [...prev, newItem]);
+    toggleEquip(newItem.id); // mark as available by default
+    setNewEquipName(""); setNewEquipShared("");
+  };
+
   return (
     <div style={S.page}>
       <div style={{width:"100%", maxWidth:600}}>
-        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10}}>
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
           <button onClick={onBack} style={S.btnSec}>← Back</button>
-          <div style={{fontSize:11, letterSpacing:"0.2em", color:"#718096", fontWeight:600}}>EXERCISE ADMIN</div>
-          <button onClick={openNew} style={{background:"#4ade80", color:"#042008", border:"none", borderRadius:8, fontSize:12, fontWeight:700, padding:"9px 16px", fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>+ ADD</button>
+          <div style={{fontSize:11, letterSpacing:"0.2em", color:"#718096", fontWeight:600}}>ADMIN</div>
+          {adminTab==="exercises"
+            ? <button onClick={openNew} style={{background:"#4ade80", color:"#042008", border:"none", borderRadius:8, fontSize:12, fontWeight:700, padding:"9px 16px", fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>+ ADD</button>
+            : <div style={{width:64}}/>
+          }
         </div>
+
+        {/* Tab bar */}
+        <div style={{display:"flex", gap:6, marginBottom:24}}>
+          {[["exercises","Exercises"],["equipment","Equipment"]].map(([t,l])=>(
+            <button key={t} onClick={()=>setAdminTab(t)} style={{
+              flex:1, padding:"11px", borderRadius:9, fontSize:12, fontWeight:700,
+              fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", cursor:"pointer", textTransform:"uppercase",
+              background: adminTab===t ? "#4ade80" : "#1a2035",
+              color: adminTab===t ? "#042008" : "#a0aec0",
+              border: adminTab===t ? "none" : "1px solid #2d3a50"
+            }}>{l}</button>
+          ))}
+        </div>
+
+        {/* ── EQUIPMENT TAB ── */}
+        {adminTab==="equipment" && (
+          <div>
+            <div style={{...S.h1, fontSize:22, marginBottom:20}}>Equipment</div>
+            <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:28}}>
+              {equipDb.map(item => {
+                const on = item.alwaysAvail || availEquip.has(item.id);
+                const count = db.filter(ex=>ex.equipment===item.label).length;
+                return (
+                  <div key={item.id} style={{display:"flex", alignItems:"center", gap:12, background:"#1a2035", border:"1px solid #2d3a50", borderRadius:10, padding:"12px 14px"}}>
+                    <input type="checkbox" checked={on} disabled={item.alwaysAvail}
+                      onChange={()=>toggleEquip(item.id)}
+                      style={{width:18, height:18, accentColor:"#4ade80", cursor:item.alwaysAvail?"default":"pointer", flexShrink:0}}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:14, fontWeight:600, color: on?"#f7fafc":"#4a5568"}}>{item.label}</div>
+                      <div style={{fontSize:10, color:"#4a5568", marginTop:2, display:"flex", gap:10}}>
+                        {item.alwaysAvail && <span style={{color:"#4ade80"}}>always available</span>}
+                        {item.sharedGroup && <span>shared: {item.sharedGroup}</span>}
+                        <span>{count} exercise{count!==1?"s":""}</span>
+                      </div>
+                    </div>
+                    {!item.alwaysAvail && (
+                      <button onClick={()=>setEquipDb(prev=>prev.filter(e=>e.id!==item.id))}
+                        style={{background:"#2d1010", border:"1px solid #f8717144", borderRadius:7, color:"#fc8181", fontSize:11, padding:"5px 9px", fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>✕</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add equipment form */}
+            <div style={{...S.card, marginBottom:16}}>
+              <div style={S.label}>Add Equipment</div>
+              <input value={newEquipName} onChange={e=>setNewEquipName(e.target.value)}
+                placeholder="Equipment name (e.g. 20kg Barbell)"
+                style={{...inStyle, marginBottom:10}}/>
+              <input value={newEquipShared} onChange={e=>setNewEquipShared(e.target.value)}
+                placeholder="Shared group (optional — e.g. barbell)"
+                style={{...inStyle, marginBottom:12}}/>
+              <button onClick={addEquipItem} disabled={!newEquipName.trim()}
+                style={{...S.btnPri, background:newEquipName.trim()?"#4ade80":"#1e2a3a", color:newEquipName.trim()?"#042008":"#4a5568", cursor:newEquipName.trim()?"pointer":"not-allowed"}}>
+                + Add Equipment
+              </button>
+              <div style={{fontSize:11, color:"#4a5568", marginTop:10}}>Shared group: exercises using equipment with the same group name can't run back-to-back.</div>
+            </div>
+          </div>
+        )}
+
+        {/* ── EXERCISES TAB ── */}
+        {adminTab==="exercises" && (<div>
         <div style={{...S.h1, fontSize:26, marginBottom:20}}>
           Exercise Library<br/>
           <span style={{fontSize:13, color:"#718096", fontFamily:"'DM Mono',monospace", fontWeight:400}}>{db.length} exercises</span>
-        </div>
-
-        {/* Equipment availability */}
-        <div style={{marginBottom:24}}>
-          <div style={S.label}>Available Equipment</div>
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
-            {EQUIP_GROUPS.map(g => {
-              const count = db.filter(ex => getEquipGroup(ex) === g.id).length;
-              const on = availEquip.has(g.id);
-              return (
-                <button key={g.id} onClick={()=>toggleEquip(g.id)} style={{
-                  display:"flex", alignItems:"center", justifyContent:"space-between",
-                  padding:"10px 14px", borderRadius:10,
-                  background: on ? "#0a2a1a" : "#111520",
-                  border: `1px solid ${on ? "#4ade8055" : "#2d3a50"}`,
-                  cursor:"pointer"
-                }}>
-                  <div>
-                    <div style={{fontSize:12, fontWeight:700, color: on?"#4ade80":"#4a5568"}}>{g.label}</div>
-                    <div style={{fontSize:10, color:"#718096"}}>{count} exercises</div>
-                  </div>
-                  <div style={{
-                    width:20, height:20, borderRadius:5,
-                    background: on ? "#4ade80" : "transparent",
-                    border: `2px solid ${on ? "#4ade80" : "#3d4a60"}`,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:12, fontWeight:700, color:"#042008"
-                  }}>{on?"✓":""}</div>
-                </button>
-              );
-            })}
-          </div>
-          <div style={{fontSize:11, color:"#4a5568", marginTop:8}}>Bodyweight exercises are always included.</div>
         </div>
 
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or equipment…"
@@ -1021,6 +1077,7 @@ No markdown, no explanation, just the JSON object.`,
           );})}
           {filtered.length===0&&<div style={{textAlign:"center", color:"#4a5568", fontSize:13, padding:"36px 0"}}>No exercises found</div>}
         </div>
+        </div>)} {/* end exercises tab */}
       </div>
 
       {/* GIF Preview Modal */}
