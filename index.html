@@ -210,7 +210,13 @@ const S = {
 // ─────────────────────────────────────────────────────────────────────────────
 function CircuitTrainer() {
   const [screen,       setScreen]       = useState("setup");
-  const [db,           setDb]           = useState(INITIAL_DB);
+  const [db,           setDb]           = useState(() => {
+    try {
+      const s = localStorage.getItem("ct_exercise_db");
+      if (s) { const p=JSON.parse(s); if (Array.isArray(p)&&p.length>0) return p; }
+    } catch {}
+    return INITIAL_DB;
+  });
   const [numCircuits,  setNumCircuits]  = useState(2);
   const [numPeople,    setNumPeople]    = useState(2);
   const [numExercises, setNumExercises] = useState(10);
@@ -245,11 +251,22 @@ function CircuitTrainer() {
     try { const s=localStorage.getItem("ct_equip_db"); return s?JSON.parse(s):INITIAL_EQUIP_DB; }
     catch { return INITIAL_EQUIP_DB; }
   });
+  const [previewPopup,  setPreviewPopup]  = useState(null);  // exercise object or null
+
+  // ── Timed setup mode ──────────────────────────────────────────────────
+  const [setupMode,     setSetupMode]     = useState("timed"); // "timed" | "manual"
+  const [timedMins,     setTimedMins]     = useState(45);
+  const [showCustomMin, setShowCustomMin] = useState(false);
+  const [customMinStr,  setCustomMinStr]  = useState("");
+
   const timerRef  = useRef(null);
   const seqRef    = useRef([]);
   const audioRef  = useRef(null);
   const spokenRef = useRef(new Set());
 
+  useEffect(() => {
+    localStorage.setItem("ct_exercise_db", JSON.stringify(db));
+  }, [db]);
   useEffect(() => {
     localStorage.setItem("ct_avail_equip", JSON.stringify([...availEquip]));
   }, [availEquip]);
@@ -291,23 +308,36 @@ function CircuitTrainer() {
   const dragging = null;
   const dragOver = null;
 
-  // When numExercises changes, trim or extend chosen list
+  // ── Timed-mode derived values ─────────────────────────────────────────
+  const TIMED_WORK     = 45;
+  const TIMED_REST     = 20;
+  const timedCircuits  = timedMins <= 30 ? 2 : 3;
+  const timedExercises = Math.ceil(timedMins * 60 / ((TIMED_WORK + TIMED_REST) * timedCircuits));
+
+  // Active values — gate between timed and manual throughout the component
+  const activeWorkSec   = setupMode === "timed" ? TIMED_WORK     : workSec;
+  const activeRestSec   = setupMode === "timed" ? TIMED_REST     : restSec;
+  const activeCircuits  = setupMode === "timed" ? timedCircuits  : numCircuits;
+  const activeExercises = setupMode === "timed" ? timedExercises : numExercises;
+
+  // When activeExercises changes, trim or extend chosen list
   useEffect(() => {
     setChosen(prev => {
       const updated = prev.map(c => db.find(e=>e.id===c.id)||c);
-      if (updated.length > numExercises) return updated.slice(0, numExercises);
-      if (updated.length < numExercises) {
+      if (updated.length > activeExercises) return updated.slice(0, activeExercises);
+      if (updated.length < activeExercises) {
         const ids = new Set(updated.map(e=>e.id));
-        const pool = db.filter(e=>!ids.has(e.id));
-        return [...updated, ...pool.slice(0, numExercises - updated.length)];
+        const pool = db.filter(e=>isExAvail(e, availEquip, equipDb) && !ids.has(e.id));
+        const fill = pool.length ? pool : db.filter(e=>!ids.has(e.id));
+        return [...updated, ...fill.slice(0, activeExercises - updated.length)];
       }
       return updated;
     });
-  }, [numExercises, db]);
+  }, [activeExercises, db]);
 
   const seq        = seqRef.current;
   const totalSlots = seq.length;
-  const totalTime  = totalSlots * (workSec+restSec);
+  const totalTime  = totalSlots * (activeWorkSec+activeRestSec);
   const progPct    = Math.min((elapsed/Math.max(totalTime,1))*100, 100);
   const mm         = Math.floor(elapsed/60).toString().padStart(2,"0");
   const ss         = (elapsed%60).toString().padStart(2,"0");
@@ -315,7 +345,7 @@ function CircuitTrainer() {
   const masterSlot = seq[masterIdx];
   const mType      = masterSlot ? (TYPE_COLORS[masterSlot.type]||TYPE_COLORS.strength) : TYPE_COLORS.strength;
   const circ       = 2*Math.PI*54;
-  const tMax       = isResting ? restSec : workSec;
+  const tMax       = isResting ? activeRestSec : activeWorkSec;
   const isCD       = !isResting && timeLeft<=10;
   const ringColor  = paused?"#3a4a5a":isResting?"#4ade80":isCD?"#f87171":mType.accent;
   const dash       = circ - (timeLeft/Math.max(tMax,1))*circ;
@@ -374,25 +404,25 @@ function CircuitTrainer() {
     stopTimer();
     if (phase==="work") {
       if (masterIdx+1>=totalSlots) setScreen("done");
-      else { setMasterIdx(i=>i+1); setTimeLeft(restSec); setPhase("rest"); }
-    } else { setTimeLeft(workSec); setPhase("work"); }
+      else { setMasterIdx(i=>i+1); setTimeLeft(activeRestSec); setPhase("rest"); }
+    } else { setTimeLeft(activeWorkSec); setPhase("work"); }
   }, [timeLeft]);
 
   const startSession = () => {
     initAudio();
-    seqRef.current = buildSequence(chosen, numCircuits, numPeople);
-    setMasterIdx(numPeople - 1); setElapsed(0); setTimeLeft(workSec);
+    seqRef.current = buildSequence(chosen, activeCircuits, numPeople);
+    setMasterIdx(numPeople - 1); setElapsed(0); setTimeLeft(activeWorkSec);
     setPhase("work"); setFocusPerson(null); setPaused(false);
     setScreen("active");
   };
   const goHome = () => {
     stopTimer(); seqRef.current=[];
-    setScreen("setup"); setMasterIdx(0); setTimeLeft(workSec);
+    setScreen("setup"); setMasterIdx(0); setTimeLeft(activeWorkSec);
     setElapsed(0); setPhase("work"); setFocusPerson(null); setPaused(false);
   };
   const kitIssues = validateSharedKit(chosen);
   const libAvail  = db.filter(ex=>!chosen.find(c=>c.id===ex.id));
-  const estMins   = Math.round(numCircuits*chosen.length*(workSec+restSec)/60);
+  const estMins   = Math.round(activeCircuits*chosen.length*(activeWorkSec+activeRestSec)/60);
 
   if (screen==="admin") return <AdminScreen db={db} setDb={setDb} onBack={()=>setScreen("setup")} initAudio={initAudio} beep={beep} availEquip={availEquip} toggleEquip={toggleEquip} equipDb={equipDb} setEquipDb={setEquipDb}/>;
 
@@ -411,10 +441,77 @@ function CircuitTrainer() {
         </div>
         <div style={S.h1}>Set up<br/>your session</div>
 
-        <div style={{marginBottom:28}}>
-          <div style={S.label}>Circuits</div>
-          <div style={{display:"flex", gap:10}}>{[1,2,3,4].map(n=><button key={n} onClick={()=>setNumCircuits(n)} style={S.seg(numCircuits===n)}>{n}</button>)}</div>
+        {/* ── Mode tab switcher ── */}
+        <div style={{display:"flex", gap:0, background:"#111520", borderRadius:10, padding:3, marginBottom:28}}>
+          {[["timed","⏱  Timed"],["manual","⚙  Manual"]].map(([mode,label])=>(
+            <button key={mode} onClick={()=>setSetupMode(mode)} style={{
+              flex:1, padding:"10px", borderRadius:8, border:"none",
+              background: setupMode===mode ? "#1a2035" : "transparent",
+              color: setupMode===mode ? "#f7fafc" : "#4a5568",
+              fontSize:12, fontWeight:700, fontFamily:"'DM Mono',monospace",
+              letterSpacing:"0.12em", cursor:"pointer", textTransform:"uppercase",
+              transition:"background 0.2s, color 0.2s"
+            }}>{label}</button>
+          ))}
         </div>
+
+        {/* ── TIMED: duration picker ── */}
+        {setupMode==="timed" && (
+          <div style={{marginBottom:28}}>
+            <div style={S.label}>Session Duration</div>
+            <div style={{display:"flex", gap:10, marginBottom: showCustomMin ? 10 : 0}}>
+              {[20,30,45].map(m=>(
+                <button key={m}
+                  onClick={()=>{ setTimedMins(m); setShowCustomMin(false); }}
+                  style={S.seg(!showCustomMin && timedMins===m)}>
+                  {m}m
+                </button>
+              ))}
+              <button onClick={()=>setShowCustomMin(true)} style={S.seg(showCustomMin)}>custom</button>
+            </div>
+            {showCustomMin && (
+              <input type="number" min={10} max={60} value={customMinStr} placeholder="10 – 60 min"
+                onChange={e=>{
+                  setCustomMinStr(e.target.value);
+                  const v=parseInt(e.target.value,10);
+                  if(!isNaN(v)) setTimedMins(Math.min(60,Math.max(10,v)));
+                }}
+                style={{width:"100%", background:"#111825", border:"1px solid #2d3a50", borderRadius:10,
+                  padding:"12px 14px", color:"#e8eaed", fontSize:13, marginBottom:10,
+                  fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", textAlign:"center"}}/>
+            )}
+            <div style={{marginTop:showCustomMin?0:10, background:"#111520", border:"1px solid #2d3a50",
+              borderRadius:10, padding:"12px 16px", display:"flex", gap:8, flexWrap:"wrap"}}>
+              {[
+                [`${TIMED_WORK}s work`,"#4ade80"],
+                [`${TIMED_REST}s rest`,"#60a5fa"],
+                [`${timedCircuits} circuit${timedCircuits>1?"s":""}`,"#c084fc"],
+                [`${timedExercises} exercises`,"#f7fafc"],
+              ].map(([lbl,col])=>(
+                <span key={lbl} style={{fontSize:11, fontWeight:700, color:col,
+                  background:`${col}18`, padding:"4px 10px", borderRadius:20,
+                  letterSpacing:"0.06em"}}>{lbl}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── MANUAL: circuits + timing sliders ── */}
+        {setupMode==="manual" && (
+          <>
+            <div style={{marginBottom:28}}>
+              <div style={S.label}>Circuits</div>
+              <div style={{display:"flex", gap:10}}>{[1,2,3,4].map(n=><button key={n} onClick={()=>setNumCircuits(n)} style={S.seg(numCircuits===n)}>{n}</button>)}</div>
+            </div>
+            <div style={{marginBottom:28}}>
+              <div style={S.label}>Interval Timing</div>
+              <div style={{...S.card, display:"flex", flexDirection:"column", gap:24}}>
+                <Slider label="Work" value={workSec} min={20} max={240} step={5} onChange={setWorkSec} accent="#4ade80"/>
+                <Slider label="Rest" value={restSec} min={10} max={45}  step={5} onChange={setRestSec} accent="#60a5fa"/>
+              </div>
+            </div>
+          </>
+        )}
 
         <div style={{marginBottom:28}}>
           <div style={S.label}>People</div>
@@ -432,14 +529,6 @@ function CircuitTrainer() {
                   style={{background:"transparent", border:"none", outline:"none", color:"#e8eaed", fontSize:14, fontFamily:"'DM Mono',monospace", width:"100%"}}/>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div style={{marginBottom:28}}>
-          <div style={S.label}>Interval Timing</div>
-          <div style={{...S.card, display:"flex", flexDirection:"column", gap:24}}>
-            <Slider label="Work" value={workSec} min={20} max={240} step={5} onChange={setWorkSec} accent="#4ade80"/>
-            <Slider label="Rest" value={restSec} min={10} max={45}  step={5} onChange={setRestSec} accent="#60a5fa"/>
           </div>
         </div>
 
@@ -468,9 +557,9 @@ function CircuitTrainer() {
 
         <div style={{...S.card, marginBottom:28, lineHeight:2.1}}>
           {[
-            ["Exercises", `${chosen.length} selected`],
-            ["Work / Rest", `${fmtSec(workSec)} on · ${fmtSec(restSec)} rest`],
-            ["Circuits", `${numCircuits}×`],
+            ["Exercises", setupMode==="timed" ? `${timedExercises} per circuit` : `${chosen.length} selected`],
+            ["Work / Rest", `${fmtSec(activeWorkSec)} on · ${fmtSec(activeRestSec)} rest`],
+            ["Circuits", `${activeCircuits}×`],
             ["Est. Duration", `~${estMins} min`],
             numPeople>1 && ["Stagger", "1 exercise offset per person"],
           ].filter(Boolean).map(([k,v])=>(
@@ -527,7 +616,7 @@ function CircuitTrainer() {
           <div style={{...S.card, marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12}}>
             <div>
               <div style={{fontSize:18, fontWeight:700, color:"#f7fafc"}}>{chosen.length} <span style={{fontSize:13, color:"#718096", fontWeight:400}}>selected</span></div>
-              <div style={{fontSize:11, color:"#4a5568", marginTop:2}}>Target: {numExercises} per circuit</div>
+              <div style={{fontSize:11, color:"#4a5568", marginTop:2}}>Target: {activeExercises} per circuit</div>
             </div>
             <div style={{display:"flex", flexDirection:"column", gap:8, alignItems:"flex-end"}}>
               <button onClick={handleOptimise} style={{background:"#1e3a2e", border:"1px solid #4ade8066", borderRadius:8, color:"#4ade80", fontSize:12, fontWeight:700, padding:"9px 14px", fontFamily:"'DM Mono',monospace", cursor:"pointer", letterSpacing:"0.08em", whiteSpace:"nowrap"}}>
@@ -668,22 +757,122 @@ function CircuitTrainer() {
             🔊 Test Audio
           </button>
 
-          {/* Start */}
-          <button onClick={startSession} disabled={chosen.length===0||kitIssues.length>0}
+          {/* Go to preview */}
+          <button onClick={()=>setScreen("preview")} disabled={chosen.length===0||kitIssues.length>0}
             style={{...S.btnPri, background:chosen.length===0||kitIssues.length>0?"#1a2035":"#4ade80", color:chosen.length===0||kitIssues.length>0?"#4a5568":"#042008", cursor:chosen.length===0||kitIssues.length>0?"not-allowed":"pointer"}}>
-            {kitIssues.length>0?"Tap Optimise to fix clashes":chosen.length===0?"Select at least 1 exercise":`Start Session ▶  (${chosen.length} exercises)`}
+            {kitIssues.length>0?"Tap Optimise to fix clashes":chosen.length===0?"Select at least 1 exercise":"Review & Start →"}
           </button>
         </div>
       </div>
     );
   }
 
+  // ── PREVIEW & START ──────────────────────────────────────────────────
+  if (screen==="preview") return (
+    <div style={{...S.page, paddingBottom:100}}>
+      <div style={{width:"100%", maxWidth:700}}>
+
+        {/* Header */}
+        <div style={{display:"flex", alignItems:"center", gap:14, marginBottom:20}}>
+          <button onClick={()=>setScreen("review")} style={S.btnSec}>← Back</button>
+          <div style={{fontSize:13, letterSpacing:"0.18em", color:"#718096", fontWeight:600}}>REVIEW & START</div>
+        </div>
+
+        {/* Session summary pill bar */}
+        <div style={{display:"flex", gap:8, flexWrap:"wrap", marginBottom:24}}>
+          {[
+            [`${fmtSec(activeWorkSec)} work`, "#4ade80"],
+            [`${fmtSec(activeRestSec)} rest`, "#60a5fa"],
+            [`${activeCircuits} circuit${activeCircuits>1?"s":""}`, "#c084fc"],
+            [`${chosen.length} exercises`, "#f7fafc"],
+            [`~${estMins} min`, "#fb923c"],
+          ].map(([lbl,col])=>(
+            <span key={lbl} style={{fontSize:12, fontWeight:700, color:col, background:`${col}18`,
+              padding:"5px 12px", borderRadius:20, letterSpacing:"0.06em"}}>{lbl}</span>
+          ))}
+        </div>
+
+        {/* Exercise list */}
+        <div style={{display:"flex", flexDirection:"column", gap:6}}>
+          {chosen.map((ex,i)=>{
+            const tc = TYPE_COLORS[ex.type]||TYPE_COLORS.strength;
+            return (
+              <div key={ex.id} style={{display:"flex", alignItems:"center", gap:12,
+                background:"#111825", border:"1px solid #1e2a3a", borderRadius:12,
+                padding:"14px 16px", transition:"border-color 0.2s"}}>
+                {/* Number */}
+                <div style={{fontSize:13, fontWeight:700, color:"#3d4a60", minWidth:28, textAlign:"right",
+                  fontFamily:"'DM Mono',monospace"}}>{String(i+1).padStart(2,"0")}</div>
+                {/* Type accent bar */}
+                <div style={{width:3, alignSelf:"stretch", borderRadius:2, background:tc.accent, flexShrink:0}}/>
+                {/* Name + equipment */}
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontSize:18, fontWeight:700, color:"#f7fafc", lineHeight:1.2,
+                    fontFamily:"Georgia,serif", marginBottom:4}}>{ex.name}</div>
+                  <div style={{display:"flex", alignItems:"center", gap:6}}>
+                    <span style={{fontSize:11, color:tc.accent, background:`${tc.accent}20`,
+                      padding:"2px 7px", borderRadius:4, fontWeight:600, letterSpacing:"0.06em"}}>{tc.label}</span>
+                    {ex.shared&&<div style={{width:6,height:6,borderRadius:"50%",background:EQUIP_COLORS[ex.shared]}}/>}
+                    <span style={{fontSize:12, color:"#718096"}}>{ex.equipment}</span>
+                  </div>
+                </div>
+                {/* Info button */}
+                <button onClick={()=>setPreviewPopup(ex)} style={{
+                  background:"#1a2035", border:"1px solid #2d3a50", borderRadius:8,
+                  color:"#60a5fa", fontSize:13, fontWeight:700, padding:"7px 11px",
+                  fontFamily:"'DM Mono',monospace", cursor:"pointer", flexShrink:0,
+                  lineHeight:1
+                }}>ℹ</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Info popup modal */}
+      {previewPopup && (
+        <div onClick={()=>setPreviewPopup(null)} style={{position:"fixed", inset:0, zIndex:100,
+          background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"center", justifyContent:"center",
+          padding:20, boxSizing:"border-box"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#141c2b", border:"1px solid #2d3a50",
+            borderRadius:18, maxWidth:480, width:"100%", overflow:"hidden", maxHeight:"85vh",
+            display:"flex", flexDirection:"column"}}>
+            {previewPopup.gif && (
+              <div style={{width:"100%", height:200, background:"#0d1525", flexShrink:0, overflow:"hidden"}}>
+                <img src={previewPopup.gif} alt={previewPopup.name}
+                  style={{width:"100%", height:"100%", objectFit:"cover", opacity:0.9}}/>
+              </div>
+            )}
+            <div style={{padding:"20px 22px 24px", overflowY:"auto"}}>
+              <div style={{fontSize:22, fontWeight:700, color:"#f7fafc", fontFamily:"Georgia,serif",
+                marginBottom:6}}>{previewPopup.name}</div>
+              <div style={{fontSize:12, color:"#718096", marginBottom:14}}>{previewPopup.equipment} · {previewPopup.muscles}</div>
+              <div style={{fontSize:14, color:"#cbd5e0", lineHeight:1.75,
+                borderLeft:"3px solid #4ade8077", paddingLeft:14}}>{previewPopup.cues}</div>
+            </div>
+            <div style={{padding:"0 22px 22px", flexShrink:0}}>
+              <button onClick={()=>setPreviewPopup(null)} style={{...S.btnSec, width:"100%", textAlign:"center"}}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pinned start button */}
+      <div style={{position:"fixed", bottom:0, left:0, right:0, padding:"14px 20px 28px",
+        background:"linear-gradient(to bottom, transparent, #0d0f12 40%)", zIndex:10}}>
+        <button onClick={startSession} style={S.btnPri}>▶  Start Session</button>
+      </div>
+    </div>
+  );
+
   // ── DONE ─────────────────────────────────────────────────────────────
   if (screen==="done") return (
     <div style={{...S.page, justifyContent:"center", textAlign:"center", minHeight:"100vh"}}>
       <div style={{fontSize:64, marginBottom:20}}>🏆</div>
       <div style={{fontSize:42, fontWeight:700, fontFamily:"Georgia,serif", color:"#f7fafc", marginBottom:10}}>Done.</div>
-      <div style={{color:"#718096", fontSize:14, marginBottom:8}}>{numCircuits} circuit{numCircuits>1?"s":""} · {numPeople} person{numPeople>1?"s":""}</div>
+      <div style={{color:"#718096", fontSize:14, marginBottom:8}}>{activeCircuits} circuit{activeCircuits>1?"s":""} · {numPeople} person{numPeople>1?"s":""}</div>
       <div style={{color:"#4ade80", fontSize:15, letterSpacing:"0.08em", marginBottom:48}}>{mm}:{ss} · Great work everyone</div>
       <button onClick={goHome} style={{...S.btnSec, fontSize:14, padding:"14px 40px", color:"#e2e8f0", borderColor:"#3d4a60"}}>⌂ Home</button>
     </div>
@@ -740,7 +929,7 @@ function CircuitTrainer() {
 
         {/* Circuit progress dots horizontal under timer */}
         <div style={{display:"flex", gap:10, marginTop:8}}>
-          {Array.from({length:numCircuits},(_,i)=>{
+          {Array.from({length:activeCircuits},(_,i)=>{
             const p1idx = masterIdx - (numPeople-1);
             const start=i*chosen.length, end=start+chosen.length-1;
             const done=p1idx>end, active=p1idx>=start&&p1idx<=end;
@@ -776,20 +965,38 @@ function CircuitTrainer() {
               <div style={{flex:1, height:1, background:"#4ade8033"}}/>
             </div>
           )}
-          <div style={{
-            display:"grid",
-            gridTemplateColumns: numPeople===1 ? "1fr" : "1fr 1fr",
-            gap:10,
-            paddingBottom:8,
-          }}>
+          <div style={{display:"flex", flexDirection:"column", gap:8, paddingBottom:8}}>
             {people.map((p,i)=>(
-              <div key={i} style={{display:"flex", flexDirection:"column"}}>
-                <div style={{fontSize:14, fontWeight:700, color:p.color, letterSpacing:"0.1em", textTransform:"uppercase", paddingBottom:5, paddingLeft:8, borderLeft:`3px solid ${p.color}`, marginBottom:4}}>{p.name}</div>
-                <button onClick={()=>setFocusPerson(i)}
-                  style={{background:"transparent", border:"none", padding:0, cursor:"pointer", textAlign:"left", display:"block", flex:1}}>
-                  <PersonCard slot={p.slot} isResting={isResting}/>
-                </button>
-              </div>
+              <button key={i} onClick={()=>setFocusPerson(i)} style={{
+                display:"flex", alignItems:"center", gap:0,
+                background: p.slot ? "#111825" : "#0a0f18",
+                border:`1px solid ${p.slot ? "#1e2a3a" : "#141c28"}`,
+                borderRadius:14, overflow:"hidden", cursor:"pointer", textAlign:"left",
+                opacity: p.slot ? 1 : 0.45, transition:"opacity 0.3s"
+              }}>
+                {/* Colour stripe */}
+                <div style={{width:5, alignSelf:"stretch", background:p.color, flexShrink:0}}/>
+                {/* Content */}
+                <div style={{flex:1, display:"flex", alignItems:"center", gap:16, padding:"14px 18px", minWidth:0}}>
+                  {/* Name */}
+                  <div style={{fontSize:17, fontWeight:700, color:p.color, letterSpacing:"0.12em",
+                    textTransform:"uppercase", minWidth:72, flexShrink:0}}>{p.name}</div>
+                  {/* Divider */}
+                  <div style={{width:1, height:36, background:"#2d3a50", flexShrink:0}}/>
+                  {/* Exercise info */}
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontSize:22, fontWeight:700, color:"#f7fafc", lineHeight:1.2,
+                      fontFamily:"Georgia,serif", whiteSpace:"nowrap", overflow:"hidden",
+                      textOverflow:"ellipsis"}}>{p.slot ? (p.slot.label||p.slot.name) : "Done"}</div>
+                    {p.slot && (
+                      <div style={{display:"flex", alignItems:"center", gap:6, marginTop:4}}>
+                        {p.slot.shared&&<div style={{width:6,height:6,borderRadius:"50%",background:EQUIP_COLORS[p.slot.shared],flexShrink:0}}/>}
+                        <div style={{fontSize:13, color:"#718096"}}>{p.slot.equipment}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
             ))}
           </div>
           </div>
