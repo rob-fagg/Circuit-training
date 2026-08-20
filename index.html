@@ -127,12 +127,10 @@ function isExAvail(ex, availEquip, equipDb) {
   return !item || item.alwaysAvail || availEquip.has(item.id);
 }
 
-function buildSequence(exercises, numCircuits, numPeople) {
+function buildSequence(exercises, numCircuits) {
   const seq = [];
   for (let c = 0; c < numCircuits; c++)
     exercises.forEach((ex,i) => seq.push({ ...ex, circuit:c+1, slotInCircuit:i }));
-  for (let p = 0; p < numPeople - 1; p++)
-    seq.push({ ...seq[0], _padding:true });
   return seq;
 }
 function validateSharedKit(exercises) {
@@ -358,7 +356,8 @@ function CircuitTrainer() {
   }, [activeExercises, db]);
 
   const seq        = seqRef.current;
-  const totalSlots = seq.length;
+  const coreLen    = seq.length;
+  const totalSlots = Math.max(coreLen + numPeople - 1, coreLen);
   const totalTime  = totalSlots * (activeWorkSec+activeRestSec);
   const progPct    = Math.min((elapsed/Math.max(totalTime,1))*100, 100);
   const mm         = Math.floor(elapsed/60).toString().padStart(2,"0");
@@ -432,7 +431,7 @@ function CircuitTrainer() {
 
   const startSession = () => {
     initAudio();
-    seqRef.current = buildSequence(chosen, activeCircuits, numPeople);
+    seqRef.current = buildSequence(chosen, activeCircuits);
     setMasterIdx(numPeople - 1); setElapsed(0); setTimeLeft(activeWorkSec);
     setPhase("work"); setFocusPerson(null); setPaused(false);
     setScreen("active");
@@ -901,9 +900,8 @@ function CircuitTrainer() {
   // ── ACTIVE ────────────────────────────────────────────────────────────
   const people = Array.from({length:numPeople},(_,i)=>{
     const idx = masterIdx - i;
-    const slot = idx >= 0 && idx < seq.length ? seq[idx] : null;
-    return { name:names[i]||`P${i+1}`, color:PERSON_COLORS[i],
-             slot: (slot && !slot._padding) ? slot : null };
+    const slot = (idx >= 0 && coreLen > 0) ? seq[idx % coreLen] : null;
+    return { name:names[i]||`P${i+1}`, color:PERSON_COLORS[i], slot };
   });
   const focusData = focusPerson!==null ? people[focusPerson] : null;
 
