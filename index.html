@@ -101,6 +101,24 @@ const INITIAL_EQUIP_DB = [
   { id:"eq_glider2",    label:"Glider discs",        sharedGroup:null,          alwaysAvail:false },
 ];
 
+// ── Unusual animal names (50) — shuffled on each page load ───────────────────
+const ANIMAL_NAMES = [
+  "Axolotl","Quokka","Pangolin","Binturong","Okapi",
+  "Numbat","Kakapo","Narwhal","Fossa","Dugong",
+  "Shoebill","Saiga","Capybara","Jerboa","Babirusa",
+  "Potoo","Tarsier","Gerenuk","Caracal","Kinkajou",
+  "Olinguito","Quoll","Bilby","Echidna","Cassowary",
+  "Dik-dik","Addax","Tuatara","Chevrotain","Peccary",
+  "Viscacha","Aardwolf","Linsang","Cacomistle","Zorilla",
+  "Tenrec","Galago","Colugo","Serval","Klipspringer",
+  "Bongo","Sitatunga","Nyala","Suni","Dikdik",
+  "Markhor","Bharal","Takin","Thoat","Hirola"
+];
+function pickAnimalNames(n) {
+  const shuffled = [...ANIMAL_NAMES].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n);
+}
+
 function getExEquipItem(ex, equipDb) {
   return equipDb.find(e => e.label === ex.equipment) || null;
 }
@@ -224,7 +242,7 @@ function CircuitTrainer() {
   const [numCircuits,  setNumCircuits]  = useState(2);
   const [numPeople,    setNumPeople]    = useState(2);
   const [numExercises, setNumExercises] = useState(10);
-  const [names,        setNames]        = useState(["Alex","Sam","Jordan","Casey"]);
+  const [names,        setNames]        = useState(() => pickAnimalNames(4));
   const [workSec,      setWorkSec]      = useState(45);
   const [restSec,      setRestSec]      = useState(15);
   const [chosen,       setChosen]       = useState(() => DEFAULT_IDS.map(id=>INITIAL_DB.find(e=>e.id===id)));
