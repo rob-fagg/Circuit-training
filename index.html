@@ -253,6 +253,8 @@ function CircuitTrainer() {
   const [reviewFilter, setReviewFilter] = useState("all");
   const [reviewSearch, setReviewSearch] = useState("");
   const [optimised,    setOptimised]    = useState(false);
+  const [dragIdx,      setDragIdx]      = useState(null);
+  const [dragOverIdx,  setDragOverIdx]  = useState(null);
   const [showUnavail,  setShowUnavail]  = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [availEquip,   setAvailEquip]   = useState(() => {
@@ -279,10 +281,11 @@ function CircuitTrainer() {
   const [showCustomMin, setShowCustomMin] = useState(false);
   const [customMinStr,  setCustomMinStr]  = useState("");
 
-  const timerRef  = useRef(null);
-  const seqRef    = useRef([]);
-  const audioRef  = useRef(null);
-  const spokenRef = useRef(new Set());
+  const timerRef       = useRef(null);
+  const seqRef         = useRef([]);
+  const audioRef       = useRef(null);
+  const spokenRef      = useRef(new Set());
+  const previewRowsRef = useRef([]);
 
   useEffect(() => {
     localStorage.setItem("ct_exercise_db", JSON.stringify(db));
@@ -758,36 +761,112 @@ function CircuitTrainer() {
           })}
         </div>
 
-        {/* Exercise list */}
-        <div style={{display:"flex", flexDirection:"column", gap:6}}>
+        {/* Equipment clash warning (shown after manual reorder) */}
+        {(()=>{
+          const clashes = validateSharedKit(chosen);
+          if (!clashes.length) return null;
+          return (
+            <div style={{background:"#2d1500", border:"1px solid #f87171", borderRadius:10, padding:"12px 14px", marginBottom:16}}>
+              <div style={{fontSize:11, color:"#fc8181", fontWeight:700, marginBottom:6}}>⚠ Equipment clash in this order</div>
+              {clashes.map((m,i)=><div key={i} style={{fontSize:11, color:"#feb2b2", marginBottom:2}}>{m}</div>)}
+              <button onClick={()=>setChosen(prev=>optimiseCircuit(prev))}
+                style={{marginTop:10, background:"#1e3a2e", border:"1px solid #4ade8066", borderRadius:8, color:"#4ade80", fontSize:12, fontWeight:700, padding:"8px 14px", fontFamily:"'DM Mono',monospace", cursor:"pointer", letterSpacing:"0.08em"}}>
+                ✦ Fix order
+              </button>
+            </div>
+          );
+        })()}
+
+        {/* Draggable exercise list */}
+        <div style={{display:"flex", flexDirection:"column", gap:0}}>
           {chosen.map((ex,i)=>{
             const tc = TYPE_COLORS[ex.type]||TYPE_COLORS.strength;
+            const isDragging = dragIdx === i;
+            const isTarget   = dragIdx !== null && dragOverIdx === i && dragOverIdx !== dragIdx;
+
+            const handleDown = (e) => {
+              e.preventDefault();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setDragIdx(i);
+              setDragOverIdx(i);
+            };
+            const handleMove = (e) => {
+              if (dragIdx === null) return;
+              const y = e.clientY;
+              const rows = previewRowsRef.current;
+              let target = rows.length - 1;
+              for (let j = 0; j < rows.length; j++) {
+                if (!rows[j]) continue;
+                const rect = rows[j].getBoundingClientRect();
+                if (y < rect.top + rect.height / 2) { target = j; break; }
+              }
+              setDragOverIdx(target);
+            };
+            const handleUp = () => {
+              if (dragIdx !== null && dragOverIdx !== null && dragIdx !== dragOverIdx) {
+                setChosen(prev => {
+                  const next = [...prev];
+                  const [moved] = next.splice(dragIdx, 1);
+                  next.splice(dragOverIdx, 0, moved);
+                  return next;
+                });
+              }
+              setDragIdx(null);
+              setDragOverIdx(null);
+            };
+
             return (
-              <div key={ex.id} style={{display:"flex", alignItems:"center", gap:12,
-                background:"#111825", border:"1px solid #1e2a3a", borderRadius:12,
-                padding:"14px 16px", transition:"border-color 0.2s"}}>
-                {/* Number */}
-                <div style={{fontSize:13, fontWeight:700, color:"#3d4a60", minWidth:28, textAlign:"right",
-                  fontFamily:"'DM Mono',monospace"}}>{String(i+1).padStart(2,"0")}</div>
-                {/* Type accent bar */}
-                <div style={{width:3, alignSelf:"stretch", borderRadius:2, background:tc.accent, flexShrink:0}}/>
-                {/* Name + equipment */}
-                <div style={{flex:1, minWidth:0}}>
-                  <div style={{fontSize:18, fontWeight:700, color:"#f7fafc", lineHeight:1.2,
-                    fontFamily:"Georgia,serif", marginBottom:4}}>{ex.name}</div>
-                  <div style={{display:"flex", alignItems:"center", gap:6}}>
-                    <span style={{fontSize:11, color:tc.accent, background:`${tc.accent}20`,
-                      padding:"2px 7px", borderRadius:4, fontWeight:600, letterSpacing:"0.06em"}}>{tc.label}</span>
-                    <span style={{fontSize:12, color:"#718096"}}>{ex.equipment}</span>
+              <div key={ex.id} ref={el=>previewRowsRef.current[i]=el}
+                style={{paddingTop: isTarget && dragOverIdx < dragIdx ? 6 : 0,
+                        paddingBottom: isTarget && dragOverIdx > dragIdx ? 6 : 0}}>
+                {/* Drop indicator above */}
+                {isTarget && dragOverIdx < dragIdx && (
+                  <div style={{height:3, borderRadius:2, background:"#4ade80", marginBottom:3}}/>
+                )}
+                <div style={{display:"flex", alignItems:"center", gap:0,
+                  background: isDragging ? "#0a1020" : "#111825",
+                  border:`1px solid ${isDragging?"#4ade8055":"#1e2a3a"}`,
+                  borderRadius:12, overflow:"hidden", marginBottom:6,
+                  opacity: isDragging ? 0.5 : 1,
+                  transition:"opacity 0.15s, background 0.15s"}}>
+                  {/* Drag handle */}
+                  <div
+                    onPointerDown={handleDown}
+                    onPointerMove={handleMove}
+                    onPointerUp={handleUp}
+                    onPointerCancel={handleUp}
+                    style={{padding:"0 14px", alignSelf:"stretch", display:"flex", alignItems:"center",
+                      cursor:"grab", touchAction:"none", color:"#3d4a60", fontSize:16, flexShrink:0,
+                      borderRight:"1px solid #1e2a3a", userSelect:"none", WebkitUserSelect:"none"}}>
+                    ⠿
                   </div>
+                  {/* Number */}
+                  <div style={{fontSize:12, fontWeight:700, color:"#3d4a60", minWidth:28, textAlign:"right",
+                    fontFamily:"'DM Mono',monospace", padding:"14px 8px 14px 12px", flexShrink:0}}>{String(i+1).padStart(2,"0")}</div>
+                  {/* Type accent bar */}
+                  <div style={{width:3, alignSelf:"stretch", background:tc.accent, flexShrink:0}}/>
+                  {/* Name + equipment */}
+                  <div style={{flex:1, minWidth:0, padding:"14px 12px"}}>
+                    <div style={{fontSize:18, fontWeight:700, color:"#f7fafc", lineHeight:1.2,
+                      fontFamily:"Georgia,serif", marginBottom:4}}>{ex.name}</div>
+                    <div style={{display:"flex", alignItems:"center", gap:6}}>
+                      <span style={{fontSize:11, color:tc.accent, background:`${tc.accent}20`,
+                        padding:"2px 7px", borderRadius:4, fontWeight:600, letterSpacing:"0.06em"}}>{tc.label}</span>
+                      <span style={{fontSize:12, color:"#718096"}}>{ex.equipment}</span>
+                    </div>
+                  </div>
+                  {/* Info button */}
+                  <button onClick={()=>setPreviewPopup(ex)} style={{
+                    background:"#1a2035", border:"none", borderLeft:"1px solid #1e2a3a",
+                    color:"#60a5fa", fontSize:13, fontWeight:700, padding:"0 14px",
+                    fontFamily:"'DM Mono',monospace", cursor:"pointer", flexShrink:0,
+                    alignSelf:"stretch", lineHeight:1
+                  }}>ℹ</button>
                 </div>
-                {/* Info button */}
-                <button onClick={()=>setPreviewPopup(ex)} style={{
-                  background:"#1a2035", border:"1px solid #2d3a50", borderRadius:8,
-                  color:"#60a5fa", fontSize:13, fontWeight:700, padding:"7px 11px",
-                  fontFamily:"'DM Mono',monospace", cursor:"pointer", flexShrink:0,
-                  lineHeight:1
-                }}>ℹ</button>
+                {/* Drop indicator below */}
+                {isTarget && dragOverIdx > dragIdx && (
+                  <div style={{height:3, borderRadius:2, background:"#4ade80", marginTop:-3, marginBottom:3}}/>
+                )}
               </div>
             );
           })}
