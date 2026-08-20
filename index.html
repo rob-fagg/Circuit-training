@@ -624,77 +624,17 @@ function CircuitTrainer() {
     const kitIssues = validateSharedKit(chosen);
 
     return (
-      <div style={S.page}>
+      <div style={{...S.page, paddingBottom:90}}>
         <div style={{width:"100%", maxWidth:600}}>
 
           {/* Header */}
-          <div style={{display:"flex", alignItems:"center", gap:14, marginBottom:20}}>
+          <div style={{display:"flex", alignItems:"center", gap:14, marginBottom:6}}>
             <button onClick={()=>setScreen("setup")} style={S.btnSec}>← Back</button>
-            <div style={{fontSize:12, letterSpacing:"0.18em", color:"#718096", fontWeight:600}}>SELECT EXERCISES</div>
           </div>
 
-          {/* Selected count + optimise */}
-          <div style={{...S.card, marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12}}>
-            <div>
-              <div style={{fontSize:18, fontWeight:700, color:"#f7fafc"}}>{chosen.length} <span style={{fontSize:13, color:"#718096", fontWeight:400}}>selected</span></div>
-              <div style={{fontSize:11, color:"#4a5568", marginTop:2}}>Target: {activeExercises} per circuit</div>
-            </div>
-            <div style={{display:"flex", flexDirection:"column", gap:8, alignItems:"flex-end"}}>
-              <button onClick={handleOptimise} style={{background:"#1e3a2e", border:"1px solid #4ade8066", borderRadius:8, color:"#4ade80", fontSize:12, fontWeight:700, padding:"9px 14px", fontFamily:"'DM Mono',monospace", cursor:"pointer", letterSpacing:"0.08em", whiteSpace:"nowrap"}}>
-                ✦ Optimise Order
-              </button>
-              {optimised && <div style={{fontSize:10, color:"#4ade80", letterSpacing:"0.1em"}}>✓ ORDER OPTIMISED</div>}
-            </div>
-          </div>
-
-          {/* Kit clash warning */}
-          {kitIssues.length>0 && (
-            <div style={{background:"#2d1500", border:"1px solid #f87171", borderRadius:10, padding:"12px 14px", marginBottom:16}}>
-              <div style={{fontSize:11, color:"#fc8181", fontWeight:700, marginBottom:4}}>⚠ Equipment clash — tap Optimise to fix</div>
-              {kitIssues.map((m,i)=><div key={i} style={{fontSize:11, color:"#feb2b2"}}>{m}</div>)}
-            </div>
-          )}
-
-          {/* Selected exercises — ordered list */}
-          {chosen.length>0 && (
-            <div style={{marginBottom:20}}>
-              <div style={{fontSize:11, color:"#718096", letterSpacing:"0.14em", fontWeight:600, marginBottom:10}}>YOUR CIRCUIT — tap to remove</div>
-              <div style={{display:"flex", flexDirection:"column", gap:6}}>
-                {chosen.map((ex,i)=>{
-                  const tc=TYPE_COLORS[ex.type]||TYPE_COLORS.strength;
-                  const avail=isExAvail(ex, availEquip, equipDb);
-                  return (
-                    <button key={ex.id} onClick={()=>toggleEx(ex)}
-                      style={{display:"flex", alignItems:"center", gap:10, background:"#1a2a1e", border:"1px solid #2d4a35", borderRadius:10, padding:"10px 12px", cursor:"pointer", textAlign:"left", width:"100%"}}>
-                      {/* Tick */}
-                      <div style={{width:22, height:22, borderRadius:6, background:"#4ade80", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:13, fontWeight:700, color:"#042008"}}>✓</div>
-                      {/* GIF thumb */}
-                      <div style={{width:40, height:40, borderRadius:6, overflow:"hidden", flexShrink:0, background:"#0d1525"}}>
-                        {ex.gif&&<img src={ex.gif} alt="" style={{width:"100%", height:"100%", objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>}
-                      </div>
-                      <div style={{flex:1, minWidth:0}}>
-                        <div style={{fontSize:13, fontWeight:700, color:"#f7fafc", marginBottom:2}}>{String(i+1).padStart(2,"0")}. {ex.name}</div>
-                        <div style={{display:"flex", gap:5, flexWrap:"wrap", alignItems:"center"}}>
-                          <span style={{fontSize:9, color:tc.accent, background:`${tc.accent}20`, padding:"1px 6px", borderRadius:3, letterSpacing:"0.08em", fontWeight:600}}>{tc.label}</span>
-                          <span style={{fontSize:10, color:"#718096"}}>{ex.equipment}</span>
-                          {!avail&&(
-                            <span style={{fontSize:9, color:"#fb923c", background:"#fb923c20", padding:"2px 6px", borderRadius:3, fontWeight:600}}>⚠ Missing</span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Divider */}
-          <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:16}}>
-            <div style={{flex:1, height:1, background:"#2d3a50"}}/>
-            <div style={{fontSize:11, color:"#4a5568", letterSpacing:"0.1em"}}>ADD MORE</div>
-            <div style={{flex:1, height:1, background:"#2d3a50"}}/>
-          </div>
+          {/* Big title */}
+          <div style={{fontSize:34, fontWeight:700, fontFamily:"Georgia,serif", color:"#f7fafc", lineHeight:1.1, marginBottom:6}}>Select your<br/>exercises</div>
+          <div style={{fontSize:13, color:"#4a5568", marginBottom:24}}>{chosen.length} selected · target {activeExercises} per circuit</div>
 
           {/* Search */}
           <input value={reviewSearch} onChange={e=>setReviewSearch(e.target.value)} placeholder="Search exercises…"
@@ -715,12 +655,7 @@ function CircuitTrainer() {
             }}>{showUnavail ? "✕ Unavailable" : "Show unavailable"}</button>
           </div>
 
-          {/* Floating selected counter */}
-          <div style={{position:"fixed", top:16, right:16, zIndex:50, background:"#4ade80", color:"#042008", borderRadius:20, padding:"6px 14px", fontSize:13, fontWeight:700, fontFamily:"'DM Mono',monospace", boxShadow:"0 4px 16px rgba(0,0,0,0.4)", pointerEvents:"none"}}>
-            {chosen.length} selected
-          </div>
-
-          {/* Full exercise library — tap to add */}
+          {/* Full exercise library */}
           <div style={{display:"flex", flexDirection:"column", gap:6, marginBottom:24}}>
             {visibleDb.map(ex=>{
               const tc=TYPE_COLORS[ex.type]||TYPE_COLORS.strength;
@@ -730,7 +665,6 @@ function CircuitTrainer() {
               return (
                 <button key={ex.id} onClick={()=>toggleEx(ex)}
                   style={{display:"flex", alignItems:"center", gap:12, background:isSelected?"#111a10":"#111520", border:`1px solid ${isSelected?"#2d4a35":"#1e2a3a"}`, borderRadius:10, padding:"12px 14px", cursor:"pointer", textAlign:"left", width:"100%", opacity:avail?1:0.45}}>
-                  {/* Checkbox only — no gif square */}
                   <div style={{width:24, height:24, borderRadius:6, border:`2px solid ${isSelected?"#4ade80":"#3d4a60"}`, background:isSelected?"#4ade80":"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:14, fontWeight:700, color:"#042008", transition:"all 0.15s"}}>
                     {isSelected?"✓":""}
                   </div>
@@ -749,22 +683,6 @@ function CircuitTrainer() {
             })}
           </div>
 
-          {/* Equipment summary */}
-          <div style={{...S.card, marginBottom:20}}>
-            <div style={{fontSize:11, color:"#718096", letterSpacing:"0.14em", fontWeight:600, marginBottom:10}}>EQUIPMENT NEEDED</div>
-            {[...new Set(chosen.map(e=>e.equipment))].map(eq=>{
-              const item = equipDb.find(e=>e.label===eq);
-              const missing = item && !item.alwaysAvail && !availEquip.has(item.id);
-              return (
-                <div key={eq} style={{display:"flex", alignItems:"center", gap:8, marginBottom:6}}>
-                  <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:"#4a5568"}}/>
-                  <span style={{fontSize:12, color: missing?"#fb923c":"#c8d4e0"}}>{eq}</span>
-                  {missing&&<span style={{fontSize:9, color:"#fb923c", background:"#fb923c20", padding:"2px 5px", borderRadius:3, fontWeight:600}}>⚠ not available</span>}
-                </div>
-              );
-            })}
-          </div>
-
           {/* Test audio */}
           <button onClick={()=>{
             try {
@@ -773,14 +691,26 @@ function CircuitTrainer() {
               const p=new SpeechSynthesisUtterance(" "); p.volume=0; window.speechSynthesis.speak(p);
             } catch(e){}
             beep(880,0.15,0.6,0); beep(1320,0.22,0.6,0.2);
-          }} style={{...S.btnSec, width:"100%", marginBottom:12, textAlign:"center"}}>
+          }} style={{...S.btnSec, width:"100%", textAlign:"center"}}>
             🔊 Test Audio
           </button>
+        </div>
 
-          {/* Go to preview */}
-          <button onClick={()=>setScreen("preview")} disabled={chosen.length===0||kitIssues.length>0}
-            style={{...S.btnPri, background:chosen.length===0||kitIssues.length>0?"#1a2035":"#4ade80", color:chosen.length===0||kitIssues.length>0?"#4a5568":"#042008", cursor:chosen.length===0||kitIssues.length>0?"not-allowed":"pointer"}}>
-            {kitIssues.length>0?"Tap Optimise to fix clashes":chosen.length===0?"Select at least 1 exercise":"Review & Start →"}
+        {/* Floating selected counter */}
+        <div style={{position:"fixed", top:16, right:16, zIndex:50, background:"#4ade80", color:"#042008", borderRadius:20, padding:"6px 14px", fontSize:13, fontWeight:700, fontFamily:"'DM Mono',monospace", boxShadow:"0 4px 16px rgba(0,0,0,0.4)", pointerEvents:"none"}}>
+          {chosen.length} selected
+        </div>
+
+        {/* Persistent Next button — optimises then advances */}
+        <div style={{position:"fixed", bottom:0, right:0, padding:"14px 20px 28px", zIndex:10}}>
+          <button
+            onClick={()=>{ setChosen(prev=>optimiseCircuit(prev)); setOptimised(true); setScreen("preview"); }}
+            disabled={chosen.length===0}
+            style={{background:chosen.length===0?"#1a2035":"#4ade80", color:chosen.length===0?"#4a5568":"#042008",
+              border:"none", borderRadius:14, fontSize:15, fontWeight:700, padding:"16px 28px",
+              fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", cursor:chosen.length===0?"not-allowed":"pointer",
+              boxShadow:"0 4px 20px rgba(0,0,0,0.5)", textTransform:"uppercase"}}>
+            Next →
           </button>
         </div>
       </div>
@@ -799,7 +729,7 @@ function CircuitTrainer() {
         </div>
 
         {/* Session summary pill bar */}
-        <div style={{display:"flex", gap:8, flexWrap:"wrap", marginBottom:24}}>
+        <div style={{display:"flex", gap:8, flexWrap:"wrap", marginBottom:20}}>
           {[
             [`${fmtSec(activeWorkSec)} work`, "#4ade80"],
             [`${fmtSec(activeRestSec)} rest`, "#60a5fa"],
@@ -810,6 +740,22 @@ function CircuitTrainer() {
             <span key={lbl} style={{fontSize:12, fontWeight:700, color:col, background:`${col}18`,
               padding:"5px 12px", borderRadius:20, letterSpacing:"0.06em"}}>{lbl}</span>
           ))}
+        </div>
+
+        {/* Equipment needed */}
+        <div style={{...S.card, marginBottom:20}}>
+          <div style={{fontSize:11, color:"#718096", letterSpacing:"0.14em", fontWeight:600, marginBottom:10}}>EQUIPMENT NEEDED</div>
+          {[...new Set(chosen.map(e=>e.equipment))].map(eq=>{
+            const item = equipDb.find(e=>e.label===eq);
+            const missing = item && !item.alwaysAvail && !availEquip.has(item.id);
+            return (
+              <div key={eq} style={{display:"flex", alignItems:"center", gap:8, marginBottom:6}}>
+                <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:"#4a5568"}}/>
+                <span style={{fontSize:12, color: missing?"#fb923c":"#c8d4e0"}}>{eq}</span>
+                {missing&&<span style={{fontSize:9, color:"#fb923c", background:"#fb923c20", padding:"2px 5px", borderRadius:3, fontWeight:600}}>⚠ not available</span>}
+              </div>
+            );
+          })}
         </div>
 
         {/* Exercise list */}
