@@ -121,8 +121,9 @@ function validateSharedKit(exercises) {
   const issues = [];
   for (let i = 0; i < exercises.length; i++) {
     const a=exercises[i], b=exercises[(i+1)%exercises.length];
-    if (a.shared && a.shared===b.shared)
-      issues.push(`"${a.name}" and "${b.name}" both need the ${a.shared}`);
+    const aEq = a.equipment||"", bEq = b.equipment||"";
+    if (aEq && aEq===bEq && aEq.toLowerCase()!=="bodyweight")
+      issues.push(`"${a.name}" and "${b.name}" both use ${aEq}`);
   }
   return issues;
 }
@@ -153,7 +154,8 @@ function optimiseCircuit(exercises) {
     for (let i = 0; i < seq.length; i++) {
       const a = seq[i], b = seq[(i+1)%seq.length];
       // Heavy penalty for shared equipment clash
-      if (a.shared && a.shared === b.shared) s += 100;
+      const aEq = a.equipment||"", bEq = b.equipment||"";
+      if (aEq && aEq===bEq && aEq.toLowerCase()!=="bodyweight") s += 100;
       // Penalty for same muscle group back-to-back
       if (MUSCLE_GROUP(a) === MUSCLE_GROUP(b)) s += 20;
       // Penalty for two power/cardio back-to-back
@@ -183,11 +185,13 @@ function optimiseCircuit(exercises) {
   for (let i = 0; i < result.length * 2; i++) {
     const idx = i % result.length;
     const next = (idx+1) % result.length;
-    if (result[idx].shared && result[idx].shared === result[next].shared) {
+    const rEq = result[idx].equipment||"", rNEq = result[next].equipment||"";
+    if (rEq && rEq===rNEq && rEq.toLowerCase()!=="bodyweight") {
       // Find a non-clashing swap partner
       for (let j = 2; j < result.length; j++) {
         const swap = (idx + j) % result.length;
-        if (!result[swap].shared || result[swap].shared !== result[idx].shared) {
+        const sEq = result[swap].equipment||"";
+        if (!sEq || sEq!==rEq || sEq.toLowerCase()==="bodyweight") {
           [result[next], result[swap]] = [result[swap], result[next]];
           break;
         }
@@ -655,7 +659,6 @@ function CircuitTrainer() {
                         <div style={{fontSize:13, fontWeight:700, color:"#f7fafc", marginBottom:2}}>{String(i+1).padStart(2,"0")}. {ex.name}</div>
                         <div style={{display:"flex", gap:5, flexWrap:"wrap", alignItems:"center"}}>
                           <span style={{fontSize:9, color:tc.accent, background:`${tc.accent}20`, padding:"1px 6px", borderRadius:3, letterSpacing:"0.08em", fontWeight:600}}>{tc.label}</span>
-                          {ex.shared&&<div style={{width:6, height:6, borderRadius:"50%", background:EQUIP_COLORS[ex.shared]}}/>}
                           <span style={{fontSize:10, color:"#718096"}}>{ex.equipment}</span>
                           {!avail&&(
                             <span style={{fontSize:9, color:"#fb923c", background:"#fb923c20", padding:"2px 6px", borderRadius:3, fontWeight:600}}>⚠ Missing</span>
@@ -737,7 +740,7 @@ function CircuitTrainer() {
               const missing = item && !item.alwaysAvail && !availEquip.has(item.id);
               return (
                 <div key={eq} style={{display:"flex", alignItems:"center", gap:8, marginBottom:6}}>
-                  <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:item?.sharedGroup==="kettlebell"?EQUIP_COLORS.kettlebell:item?.sharedGroup==="medball"?EQUIP_COLORS.medball:"#4a5568"}}/>
+                  <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:"#4a5568"}}/>
                   <span style={{fontSize:12, color: missing?"#fb923c":"#c8d4e0"}}>{eq}</span>
                   {missing&&<span style={{fontSize:9, color:"#fb923c", background:"#fb923c20", padding:"2px 5px", borderRadius:3, fontWeight:600}}>⚠ not available</span>}
                 </div>
@@ -812,7 +815,6 @@ function CircuitTrainer() {
                   <div style={{display:"flex", alignItems:"center", gap:6}}>
                     <span style={{fontSize:11, color:tc.accent, background:`${tc.accent}20`,
                       padding:"2px 7px", borderRadius:4, fontWeight:600, letterSpacing:"0.06em"}}>{tc.label}</span>
-                    {ex.shared&&<div style={{width:6,height:6,borderRadius:"50%",background:EQUIP_COLORS[ex.shared]}}/>}
                     <span style={{fontSize:12, color:"#718096"}}>{ex.equipment}</span>
                   </div>
                 </div>
@@ -990,7 +992,6 @@ function CircuitTrainer() {
                       textOverflow:"ellipsis"}}>{p.slot ? (p.slot.label||p.slot.name) : "Done"}</div>
                     {p.slot && (
                       <div style={{display:"flex", alignItems:"center", gap:6, marginTop:4}}>
-                        {p.slot.shared&&<div style={{width:6,height:6,borderRadius:"50%",background:EQUIP_COLORS[p.slot.shared],flexShrink:0}}/>}
                         <div style={{fontSize:13, color:"#718096"}}>{p.slot.equipment}</div>
                       </div>
                     )}
@@ -1051,7 +1052,6 @@ function PersonCard({ slot, color, name, isResting, large, showName }) {
           <div style={{fontSize:14, color:"#cbd5e0", lineHeight:1.7, marginBottom:12, borderLeft:`3px solid ${tc.accent}77`, paddingLeft:12}}>{slot.cues}</div>
           <div style={{fontSize:12, color:"#a0aec0", marginBottom:6}}>{slot.muscles}</div>
           <div style={{display:"flex", alignItems:"center", gap:7}}>
-            {slot.shared&&<div style={{width:7, height:7, borderRadius:"50%", background:EQUIP_COLORS[slot.shared]}}/>}
             <div style={{fontSize:12, color:"#a0aec0"}}>{slot.equipment}</div>
           </div>
         </>)}
@@ -1105,14 +1105,15 @@ function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEqu
   const [llmError,   setLlmError]   = useState("");
   const [preview,    setPreview]    = useState(null);
   const [newEquipName,   setNewEquipName]   = useState("");
-  const [newEquipShared, setNewEquipShared] = useState("");
 
   const openNew  = () => { setForm({...EMPTY_EX, id:Date.now().toString(36)}); setNlInput(""); setLlmError(""); setAddStep("describe"); setEditing("new"); };
   const openEdit = ex => { setForm({...ex}); setEditing(ex.id); setAddStep("review"); };
   const cancel   = () => { setEditing(null); setForm(EMPTY_EX); setNlInput(""); setLlmError(""); };
   const save     = () => {
-    if (!form.name.trim()||!form.equipment.trim()) return;
-    setDb(prev=>editing==="new"?[...prev,{...form}]:prev.map(e=>e.id===editing?{...form}:e));
+    if (!form.name.trim()) return;
+    // Ensure equipment defaults to first item if somehow empty
+    const eq = form.equipment || (equipDb[0]?.label ?? "Bodyweight");
+    setDb(prev=>editing==="new"?[...prev,{...form,equipment:eq}]:prev.map(e=>e.id===editing?{...form,equipment:eq}:e));
     cancel();
   };
 
@@ -1128,7 +1129,6 @@ function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEqu
           system:`You are a fitness expert. Given a description of an exercise, return ONLY a JSON object with these fields:
 - name: short exercise name
 - equipment: one of ${equipDb.map(e=>JSON.stringify(e.label)).join(", ")}
-- shared: null${equipDb.filter(e=>e.sharedGroup).map(e=>`, "${e.sharedGroup}"`).filter((v,i,a)=>a.indexOf(v)===i).join("")}
 - muscles: e.g. "Quads · Glutes · Core"
 - cues: 1-2 sentence coaching instruction
 - type: "strength", "cardio", "power", "core", or "mobility"
@@ -1154,11 +1154,10 @@ No markdown, no explanation, just the JSON object.`,
   const addEquipItem = () => {
     const label = newEquipName.trim();
     if (!label) return;
-    const sg = newEquipShared.trim() || null;
-    const newItem = { id: Date.now().toString(36), label, sharedGroup: sg, alwaysAvail: false };
+    const newItem = { id: Date.now().toString(36), label, alwaysAvail: false };
     setEquipDb(prev => [...prev, newItem]);
     toggleEquip(newItem.id); // mark as available by default
-    setNewEquipName(""); setNewEquipShared("");
+    setNewEquipName("");
   };
 
   return (
@@ -1203,7 +1202,6 @@ No markdown, no explanation, just the JSON object.`,
                       <div style={{fontSize:14, fontWeight:600, color: on?"#f7fafc":"#4a5568"}}>{item.label}</div>
                       <div style={{fontSize:10, color:"#4a5568", marginTop:2, display:"flex", gap:10}}>
                         {item.alwaysAvail && <span style={{color:"#4ade80"}}>always available</span>}
-                        {item.sharedGroup && <span>shared: {item.sharedGroup}</span>}
                         <span>{count} exercise{count!==1?"s":""}</span>
                       </div>
                     </div>
@@ -1219,17 +1217,17 @@ No markdown, no explanation, just the JSON object.`,
             {/* Add equipment form */}
             <div style={{...S.card, marginBottom:16}}>
               <div style={S.label}>Add Equipment</div>
-              <input value={newEquipName} onChange={e=>setNewEquipName(e.target.value)}
-                placeholder="Equipment name (e.g. 20kg Barbell)"
-                style={{...inStyle, marginBottom:10}}/>
-              <input value={newEquipShared} onChange={e=>setNewEquipShared(e.target.value)}
-                placeholder="Shared group (optional — e.g. barbell)"
-                style={{...inStyle, marginBottom:12}}/>
-              <button onClick={addEquipItem} disabled={!newEquipName.trim()}
-                style={{...S.btnPri, background:newEquipName.trim()?"#4ade80":"#1e2a3a", color:newEquipName.trim()?"#042008":"#4a5568", cursor:newEquipName.trim()?"pointer":"not-allowed"}}>
-                + Add Equipment
-              </button>
-              <div style={{fontSize:11, color:"#4a5568", marginTop:10}}>Shared group: exercises using equipment with the same group name can't run back-to-back.</div>
+              <div style={{display:"flex", gap:10}}>
+                <input value={newEquipName} onChange={e=>setNewEquipName(e.target.value)}
+                  placeholder="Equipment name (e.g. 20kg Barbell)"
+                  style={{...inStyle, flex:1}}
+                  onKeyDown={e=>e.key==="Enter"&&addEquipItem()}/>
+                <button onClick={addEquipItem} disabled={!newEquipName.trim()}
+                  style={{padding:"12px 18px", borderRadius:10, border:"none", background:newEquipName.trim()?"#4ade80":"#1e2a3a", color:newEquipName.trim()?"#042008":"#4a5568", fontSize:13, fontWeight:700, fontFamily:"'DM Mono',monospace", cursor:newEquipName.trim()?"pointer":"not-allowed", flexShrink:0}}>
+                  + Add
+                </button>
+              </div>
+              <div style={{fontSize:11, color:"#4a5568", marginTop:8}}>All equipment is assumed shareable — the optimiser prevents back-to-back use of the same equipment.</div>
             </div>
           </div>
         )}
@@ -1265,11 +1263,10 @@ No markdown, no explanation, just the JSON object.`,
                   <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8}}>
                     <div style={{flex:1, minWidth:0}}>
                       <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap"}}>
-                        <div style={{width:7, height:7, borderRadius:"50%", flexShrink:0, background:ex.shared?(EQUIP_COLORS[ex.shared]||"#4a5568"):"#4a5568"}}/>
                         <div style={{fontSize:15, fontWeight:700, color:"#f0f4f8"}}>{ex.name}</div>
                         <div style={{fontSize:9, color:tc.accent, background:`${tc.accent}20`, padding:"2px 7px", borderRadius:4, letterSpacing:"0.08em", fontWeight:600}}>{tc.label}</div>
                       </div>
-                      <div style={{fontSize:12, color:"#a0aec0", marginBottom:3}}>{ex.equipment}{ex.shared?` · shared: ${ex.shared}`:""}</div>
+                      <div style={{fontSize:12, color:"#a0aec0", marginBottom:3}}>{ex.equipment}</div>
                       <div style={{fontSize:11, color:"#718096", lineHeight:1.5}}>{ex.muscles}</div>
                     </div>
                     <div style={{display:"flex", gap:6, flexShrink:0}}>
@@ -1337,12 +1334,21 @@ No markdown, no explanation, just the JSON object.`,
               <div>
                 {editing==="new"&&!llmError&&form.name&&<div style={{background:"#0a2010", border:"1px solid #4ade8066", borderRadius:8, padding:"11px 14px", marginBottom:18, fontSize:13, color:"#68d391"}}>✓ Fields filled — review and adjust as needed</div>}
 
-                {[["Name","name",""],["Equipment","equipment","e.g. 12kg Kettlebell"],["Muscles","muscles","e.g. Quads · Glutes · Core"],["GIF URL (optional)","gif","https://media.giphy.com/…"]].map(([l,k,ph])=>(
+                {[["Name","name",""],["Muscles","muscles","e.g. Quads · Glutes · Core"],["GIF URL (optional)","gif","https://media.giphy.com/…"]].map(([l,k,ph])=>(
                   <div key={k} style={{marginBottom:16}}>
                     <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>{l.toUpperCase()}</div>
                     <input value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={inStyle}/>
                   </div>
                 ))}
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>EQUIPMENT</div>
+                  <select value={form.equipment||""} onChange={e=>setForm(f=>({...f,equipment:e.target.value}))}
+                    style={{...inStyle, appearance:"none", WebkitAppearance:"none", cursor:"pointer"}}>
+                    {equipDb.map(eq=>(
+                      <option key={eq.id} value={eq.label}>{eq.label}</option>
+                    ))}
+                  </select>
+                </div>
                 {form.gif&&<div style={{marginBottom:16, borderRadius:8, overflow:"hidden"}}><img src={form.gif} alt="preview" style={{width:"100%", maxHeight:160, objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/></div>}
 
                 <div style={{marginBottom:16}}>
@@ -1359,18 +1365,9 @@ No markdown, no explanation, just the JSON object.`,
                   </div>
                 </div>
 
-                <div style={{marginBottom:22}}>
-                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:10, fontWeight:600}}>SHARED EQUIPMENT</div>
-                  <div style={{display:"flex", gap:9}}>
-                    {[null,"kettlebell","medball"].map(s=>(
-                      <button key={String(s)} onClick={()=>setForm(f=>({...f,shared:s}))} style={{flex:1, padding:"9px", borderRadius:9, fontSize:12, fontFamily:"'DM Mono',monospace", cursor:"pointer", fontWeight:600, background:form.shared===s?"#f7fafc":"#1e2a3a", color:form.shared===s?"#042008":"#a0aec0", border:form.shared===s?"none":"1px solid #2d3a50"}}>{s===null?"None":s}</button>
-                    ))}
-                  </div>
-                </div>
-
                 <div style={{display:"flex", gap:10}}>
                   <button onClick={cancel} style={{...S.btnSec, flex:1, textAlign:"center"}}>Cancel</button>
-                  <button onClick={save} disabled={!form.name.trim()||!form.equipment.trim()} style={{flex:2, padding:"14px", borderRadius:10, border:"none", background:!form.name.trim()||!form.equipment.trim()?"#1e2a3a":"#4ade80", color:!form.name.trim()||!form.equipment.trim()?"#4a5568":"#042008", fontSize:13, fontWeight:700, letterSpacing:"0.1em", fontFamily:"'DM Mono',monospace", cursor:"pointer", textTransform:"uppercase"}}>
+                  <button onClick={save} disabled={!form.name.trim()} style={{flex:2, padding:"14px", borderRadius:10, border:"none", background:!form.name.trim()?"#1e2a3a":"#4ade80", color:!form.name.trim()?"#4a5568":"#042008", fontSize:13, fontWeight:700, letterSpacing:"0.1em", fontFamily:"'DM Mono',monospace", cursor:"pointer", textTransform:"uppercase"}}>
                     {editing==="new"?"Add Exercise":"Save Changes"}
                   </button>
                 </div>
