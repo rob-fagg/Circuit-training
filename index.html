@@ -343,7 +343,7 @@ function CircuitTrainer() {
   // When activeExercises changes, trim or extend chosen list
   useEffect(() => {
     setChosen(prev => {
-      const updated = prev.map(c => db.find(e=>e.id===c.id)||c);
+      const updated = prev.map(c => db.find(e=>e.id===c.id)).filter(Boolean);
       if (updated.length > activeExercises) return updated.slice(0, activeExercises);
       if (updated.length < activeExercises) {
         const ids = new Set(updated.map(e=>e.id));
