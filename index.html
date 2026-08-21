@@ -286,6 +286,7 @@ function CircuitTrainer() {
   const audioRef       = useRef(null);
   const spokenRef      = useRef(new Set());
   const previewRowsRef = useRef([]);
+  const voiceRef       = useRef(null);
 
   useEffect(() => {
     localStorage.setItem("ct_exercise_db", JSON.stringify(db));
@@ -374,6 +375,32 @@ function CircuitTrainer() {
   const ringColor  = paused?"#3a4a5a":isResting?"#4ade80":isCD?"#f87171":mType.accent;
   const dash       = circ - (timeLeft/Math.max(tMax,1))*circ;
 
+  // ── Voice selection ───────────────────────────────────────────────────
+  const loadVoice = () => {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return;
+    // Priority ladder — most natural female first, then fallbacks
+    const tests = [
+      v => v.name === "Samantha",                                                          // iOS — warm, natural
+      v => v.lang.startsWith("en") && /female/i.test(v.name),                            // Chrome Android "Google UK English Female"
+      v => v.lang.startsWith("en") && /\b(Aria|Jenny|Sara|Zira|Emma|Emily|Susan)\b/i.test(v.name), // Edge Natural
+      v => v.lang.startsWith("en") && /\b(Karen|Moira|Tessa|Fiona|Veena|Victoria)\b/i.test(v.name),
+      v => v.lang.startsWith("en-GB") && v.localService,
+      v => v.lang.startsWith("en") && v.localService,
+      v => v.lang.startsWith("en"),
+    ];
+    for (const test of tests) {
+      const match = voices.find(test);
+      if (match) { voiceRef.current = match; return; }
+    }
+    voiceRef.current = voices[0];
+  };
+  useEffect(() => {
+    loadVoice();
+    window.speechSynthesis.onvoiceschanged = loadVoice;
+    return () => { try { window.speechSynthesis.onvoiceschanged = null; } catch(e){} };
+  }, []);
+
   // ── Audio ─────────────────────────────────────────────────────────────
   const initAudio = () => {
     try {
@@ -393,8 +420,14 @@ function CircuitTrainer() {
       o.start(t); o.stop(t+dur+0.05);
     } catch(e){}
   };
-  const speak = (text,rate=1.1) => {
-    try { window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=rate; u.volume=1.0; window.speechSynthesis.speak(u); } catch(e){}
+  const speak = (text, rate=1.1) => {
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      if (voiceRef.current) u.voice = voiceRef.current;
+      u.rate = rate; u.volume = 1.0; u.pitch = 1.05;
+      window.speechSynthesis.speak(u);
+    } catch(e) {}
   };
   const playStart = () => { beep(880,0.15,0.6); beep(1320,0.22,0.6,0.18); };
 
