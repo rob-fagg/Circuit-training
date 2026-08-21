@@ -27,6 +27,32 @@
 const { useState, useEffect, useRef } = React;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FIREBASE — paste your Realtime Database URL here (keep trailing slash off)
+// Setup: console.firebase.google.com → new project → Realtime Database → test mode
+// ─────────────────────────────────────────────────────────────────────────────
+const FIREBASE_URL = "https://YOUR-PROJECT-ID-default-rtdb.firebaseio.com"; // ← replace this
+
+const fbRead = async (path) => {
+  if (!FIREBASE_URL || FIREBASE_URL.includes("YOUR-PROJECT")) return null;
+  try {
+    const r = await fetch(`${FIREBASE_URL}/${path}.json`);
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data;
+  } catch(e) { return null; }
+};
+const fbWrite = (path, data) => {
+  if (!FIREBASE_URL || FIREBASE_URL.includes("YOUR-PROJECT")) return;
+  try {
+    fetch(`${FIREBASE_URL}/${path}.json`, {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+  } catch(e) {}
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EXERCISE DATABASE
 // gif: animated demo from Giphy public fitness library
 // ─────────────────────────────────────────────────────────────────────────────
@@ -288,15 +314,29 @@ function CircuitTrainer() {
   const previewRowsRef = useRef([]);
   const voiceRef       = useRef(null);
 
+  // Persist exercises — localStorage for instant load, Firebase for cross-device sync
   useEffect(() => {
     localStorage.setItem("ct_exercise_db", JSON.stringify(db));
+    fbWrite("exercises", db);
   }, [db]);
+  // Persist available equipment selection — device-local only (per-session/per-gym-station)
   useEffect(() => {
     localStorage.setItem("ct_avail_equip", JSON.stringify([...availEquip]));
   }, [availEquip]);
+  // Persist equipment DB — localStorage + Firebase
   useEffect(() => {
     localStorage.setItem("ct_equip_db", JSON.stringify(equipDb));
+    fbWrite("equipment", equipDb);
   }, [equipDb]);
+  // On mount: load authoritative data from Firebase, overriding local cache
+  useEffect(() => {
+    fbRead("exercises").then(data => {
+      if (Array.isArray(data) && data.length > 0) setDb(data);
+    });
+    fbRead("equipment").then(data => {
+      if (Array.isArray(data) && data.length > 0) setEquipDb(data);
+    });
+  }, []);
 
   function toggleEquip(id) {
     setAvailEquip(prev => {
