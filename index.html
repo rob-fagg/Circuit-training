@@ -159,13 +159,21 @@ function buildSequence(exercises, numCircuits) {
     exercises.forEach((ex,i) => seq.push({ ...ex, circuit:c+1, slotInCircuit:i }));
   return seq;
 }
-function validateSharedKit(exercises) {
+const isEquipException = eq =>
+  !eq || eq.toLowerCase()==="bodyweight" || eq.toLowerCase().includes("band");
+
+function validateSharedKit(exercises, numPeople=2) {
   const issues = [];
-  for (let i = 0; i < exercises.length; i++) {
-    const a=exercises[i], b=exercises[(i+1)%exercises.length];
-    const aEq = a.equipment||"", bEq = b.equipment||"";
-    if (aEq && aEq===bEq && aEq.toLowerCase()!=="bodyweight")
-      issues.push(`"${a.name}" and "${b.name}" both use ${aEq}`);
+  const n = exercises.length;
+  for (let i = 0; i < n; i++) {
+    const aEq = exercises[i].equipment||"";
+    if (isEquipException(aEq)) continue;
+    for (let w = 1; w < Math.min(numPeople, n); w++) {
+      const b = exercises[(i+w)%n];
+      const bEq = b.equipment||"";
+      if (aEq===bEq)
+        issues.push(`"${exercises[i].name}" and "${b.name}" both use ${aEq}`);
+    }
   }
   return issues;
 }
@@ -179,7 +187,7 @@ function fmtSec(s) { return s<60?`${s}s`:`${Math.floor(s/60)}m${s%60>0?" "+(s%60
 // 3. Alternate upper/lower/core/cardio as much as possible
 // 4. Place high-intensity (power/cardio) exercises away from each other
 // 5. Start with compound movements, finish with core/mobility
-function optimiseCircuit(exercises) {
+function optimiseCircuit(exercises, numPeople=2) {
   if (exercises.length <= 1) return exercises;
 
   const MUSCLE_GROUP = (ex) => {
@@ -193,11 +201,17 @@ function optimiseCircuit(exercises) {
   // Score a sequence — lower is better
   const score = (seq) => {
     let s = 0;
-    for (let i = 0; i < seq.length; i++) {
-      const a = seq[i], b = seq[(i+1)%seq.length];
-      // Heavy penalty for shared equipment clash
-      const aEq = a.equipment||"", bEq = b.equipment||"";
-      if (aEq && aEq===bEq && aEq.toLowerCase()!=="bodyweight") s += 100;
+    const n = seq.length;
+    for (let i = 0; i < n; i++) {
+      const a = seq[i];
+      const aEq = a.equipment||"";
+      // Heavy penalty for equipment clash within the people-window
+      if (!isEquipException(aEq)) {
+        for (let w = 1; w < Math.min(numPeople, n); w++) {
+          if (aEq===(seq[(i+w)%n].equipment||"")) s += 100;
+        }
+      }
+      const b = seq[(i+1)%n];
       // Penalty for same muscle group back-to-back
       if (MUSCLE_GROUP(a) === MUSCLE_GROUP(b)) s += 20;
       // Penalty for two power/cardio back-to-back
@@ -212,30 +226,32 @@ function optimiseCircuit(exercises) {
     return s;
   };
 
-  // Greedy nearest-neighbour with random restarts (fast enough for ≤15 exercises)
+  // Random restarts (fast enough for ≤16 exercises)
   const shuffle = (arr) => [...arr].sort(()=>Math.random()-0.5);
   let best = [...exercises], bestScore = score(best);
-
   for (let attempt = 0; attempt < 200; attempt++) {
     const candidate = shuffle(exercises);
     const s = score(candidate);
     if (s < bestScore) { best = candidate; bestScore = s; }
   }
 
-  // Final pass: if any adjacent shared-equipment clash remains, force-swap
+  // Final pass: force-swap any within-window equipment clashes that remain
   const result = [...best];
   for (let i = 0; i < result.length * 2; i++) {
     const idx = i % result.length;
-    const next = (idx+1) % result.length;
-    const rEq = result[idx].equipment||"", rNEq = result[next].equipment||"";
-    if (rEq && rEq===rNEq && rEq.toLowerCase()!=="bodyweight") {
-      // Find a non-clashing swap partner
-      for (let j = 2; j < result.length; j++) {
-        const swap = (idx + j) % result.length;
-        const sEq = result[swap].equipment||"";
-        if (!sEq || sEq!==rEq || sEq.toLowerCase()==="bodyweight") {
-          [result[next], result[swap]] = [result[swap], result[next]];
-          break;
+    const aEq = result[idx].equipment||"";
+    if (isEquipException(aEq)) continue;
+    for (let w = 1; w < Math.min(numPeople, result.length); w++) {
+      const next = (idx+w) % result.length;
+      if ((result[next].equipment||"") === aEq) {
+        // Swap `next` with the first position that doesn't clash with idx
+        for (let j = 1; j < result.length; j++) {
+          const swap = (next+j) % result.length;
+          if (swap===idx) continue;
+          if ((result[swap].equipment||"") !== aEq) {
+            [result[next], result[swap]] = [result[swap], result[next]];
+            break;
+          }
         }
       }
     }
@@ -517,7 +533,7 @@ function CircuitTrainer() {
     setScreen("setup"); setMasterIdx(0); setTimeLeft(activeWorkSec);
     setElapsed(0); setPhase("work"); setFocusPerson(null); setPaused(false);
   };
-  const kitIssues = validateSharedKit(chosen);
+  const kitIssues = validateSharedKit(chosen, numPeople);
   const libAvail  = db.filter(ex=>!chosen.find(c=>c.id===ex.id));
   const estMins   = Math.round(activeCircuits*chosen.length*(activeWorkSec+activeRestSec)/60);
 
@@ -686,7 +702,7 @@ function CircuitTrainer() {
     };
 
     const handleOptimise = () => {
-      setChosen(prev=>optimiseCircuit(prev));
+      setChosen(prev=>optimiseCircuit(prev, numPeople));
       setOptimised(true);
     };
 
@@ -697,7 +713,7 @@ function CircuitTrainer() {
       return true;
     });
 
-    const kitIssues = validateSharedKit(chosen);
+    const kitIssues = validateSharedKit(chosen, numPeople);
 
     return (
       <div style={{...S.page, paddingBottom:90}}>
@@ -780,7 +796,7 @@ function CircuitTrainer() {
         {/* Persistent Next button — optimises then advances */}
         <div style={{position:"fixed", bottom:0, right:0, padding:"14px 20px 28px", zIndex:10}}>
           <button
-            onClick={()=>{ setChosen(prev=>optimiseCircuit(prev)); setOptimised(true); setScreen("preview"); }}
+            onClick={()=>{ setChosen(prev=>optimiseCircuit(prev, numPeople)); setOptimised(true); setScreen("preview"); }}
             disabled={chosen.length===0}
             style={{background:chosen.length===0?"#1a2035":"#4ade80", color:chosen.length===0?"#4a5568":"#042008",
               border:"none", borderRadius:14, fontSize:15, fontWeight:700, padding:"16px 28px",
@@ -836,13 +852,13 @@ function CircuitTrainer() {
 
         {/* Equipment clash warning (shown after manual reorder) */}
         {(()=>{
-          const clashes = validateSharedKit(chosen);
+          const clashes = validateSharedKit(chosen, numPeople);
           if (!clashes.length) return null;
           return (
             <div style={{background:"#2d1500", border:"1px solid #f87171", borderRadius:10, padding:"12px 14px", marginBottom:16}}>
               <div style={{fontSize:11, color:"#fc8181", fontWeight:700, marginBottom:6}}>⚠ Equipment clash in this order</div>
               {clashes.map((m,i)=><div key={i} style={{fontSize:11, color:"#feb2b2", marginBottom:2}}>{m}</div>)}
-              <button onClick={()=>setChosen(prev=>optimiseCircuit(prev))}
+              <button onClick={()=>setChosen(prev=>optimiseCircuit(prev, numPeople))}
                 style={{marginTop:10, background:"#1e3a2e", border:"1px solid #4ade8066", borderRadius:8, color:"#4ade80", fontSize:12, fontWeight:700, padding:"8px 14px", fontFamily:"'DM Mono',monospace", cursor:"pointer", letterSpacing:"0.08em"}}>
                 ✦ Fix order
               </button>
