@@ -30,7 +30,7 @@ const { useState, useEffect, useRef } = React;
 // FIREBASE — paste your Realtime Database URL here (keep trailing slash off)
 // Setup: console.firebase.google.com → new project → Realtime Database → test mode
 // ─────────────────────────────────────────────────────────────────────────────
-const FIREBASE_URL = "https://YOUR-PROJECT-ID-default-rtdb.firebaseio.com"; // ← replace this
+const FIREBASE_URL = "https://circuit-training-df5f2-default-rtdb.europe-west1.firebasedatabase.app";
 
 const fbRead = async (path) => {
   if (!FIREBASE_URL || FIREBASE_URL.includes("YOUR-PROJECT")) return null;
