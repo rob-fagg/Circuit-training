@@ -1063,19 +1063,50 @@ function CircuitTrainer() {
             lineHeight:1.1, textAlign:"center", marginBottom:8}}>
             {countdownSec} second{countdownSec!==1?"s":""}
           </div>
-          {/* Participant pills */}
-          <div style={{display:"flex", gap:8, marginTop:32, flexWrap:"wrap", justifyContent:"center"}}>
-            {Array.from({length:numPeople},(_,i)=>(
-              <div key={i} style={{background:`${PERSON_COLORS[i]}22`, border:`1px solid ${PERSON_COLORS[i]}55`,
-                borderRadius:20, padding:"6px 14px", fontSize:12, fontWeight:700,
-                color:PERSON_COLORS[i], letterSpacing:"0.1em", textTransform:"uppercase"}}>
-                {names[i]||`P${i+1}`}
-              </div>
-            ))}
+          {/* First exercise per participant */}
+          <div style={{width:"100%", maxWidth:500, marginTop:32, display:"flex", flexDirection:"column", gap:8, padding:"0 16px", boxSizing:"border-box"}}>
+            {Array.from({length:numPeople},(_,i)=>{
+              const cdSeq = seqRef.current;
+              const cdCore = cdSeq.length;
+              const firstIdx = cdCore > 0 ? ((numPeople-1-i) % cdCore) : -1;
+              const ex = firstIdx >= 0 ? cdSeq[firstIdx] : null;
+              const tc = ex ? (TYPE_COLORS[ex.type]||TYPE_COLORS.strength) : TYPE_COLORS.strength;
+              return (
+                <div key={i} style={{display:"flex", alignItems:"center", gap:0,
+                  background:"#111825", border:`1px solid #1e2a3a`,
+                  borderRadius:12, overflow:"hidden"}}>
+                  {/* Colour stripe */}
+                  <div style={{width:5, alignSelf:"stretch", background:PERSON_COLORS[i], flexShrink:0}}/>
+                  <div style={{flex:1, display:"flex", alignItems:"center", gap:14, padding:"12px 16px", minWidth:0}}>
+                    {/* Name */}
+                    <div style={{fontSize:13, fontWeight:700, color:PERSON_COLORS[i],
+                      letterSpacing:"0.12em", textTransform:"uppercase",
+                      minWidth:64, flexShrink:0}}>{names[i]||`P${i+1}`}</div>
+                    <div style={{width:1, height:28, background:"#2d3a50", flexShrink:0}}/>
+                    {/* Exercise */}
+                    {ex ? (
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{fontSize:16, fontWeight:700, color:"#f7fafc", lineHeight:1.2,
+                          fontFamily:"Georgia,serif", whiteSpace:"nowrap", overflow:"hidden",
+                          textOverflow:"ellipsis"}}>{ex.name}</div>
+                        <div style={{display:"flex", alignItems:"center", gap:6, marginTop:3}}>
+                          <span style={{fontSize:10, color:tc.accent, background:`${tc.accent}20`,
+                            padding:"1px 6px", borderRadius:3, fontWeight:600,
+                            letterSpacing:"0.06em"}}>{tc.label}</span>
+                          <span style={{fontSize:11, color:"#718096"}}>{ex.equipment}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:13, color:"#4a5568"}}>—</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           {/* Skip */}
           <button onClick={()=>{ setCountdownSec(0); }}
-            style={{marginTop:40, ...S.btnSec, fontSize:11, padding:"8px 20px", color:"#4a5568",
+            style={{marginTop:28, ...S.btnSec, fontSize:11, padding:"8px 20px", color:"#4a5568",
               borderColor:"#2d3a50"}}>
             Skip →
           </button>
