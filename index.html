@@ -910,7 +910,7 @@ function CircuitTrainer() {
         </div>
         <div style={{fontSize:34, fontWeight:700, fontFamily:"Georgia,serif", color:"#f7fafc",
           lineHeight:1.1, marginBottom:20}}>
-          Review &amp;<br/>Start
+          Review &amp; start
         </div>
 
         {/* Session summary pill bar */}
@@ -1294,7 +1294,8 @@ function CircuitTrainer() {
                 <div style={{flex:1, display:"flex", alignItems:"center", gap:16, padding:"14px 18px", minWidth:0}}>
                   {/* Name */}
                   <div style={{fontSize:17, fontWeight:700, color:p.color, letterSpacing:"0.12em",
-                    textTransform:"uppercase", minWidth:72, flexShrink:0}}>{p.name}</div>
+                    textTransform:"uppercase", width:112, flexShrink:0,
+                    whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>{p.name}</div>
                   {/* Divider */}
                   <div style={{width:1, height:36, background:"#2d3a50", flexShrink:0}}/>
                   {/* Exercise info */}
