@@ -317,6 +317,8 @@ function CircuitTrainer() {
     catch { return INITIAL_EQUIP_DB; }
   });
   const [previewPopup,  setPreviewPopup]  = useState(null);  // exercise object or null
+  const [showQuickAdd,  setShowQuickAdd]  = useState(false);
+  const [quickForm,     setQuickForm]     = useState({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:""});
 
   // ── Timed setup mode ──────────────────────────────────────────────────
   const [setupMode,     setSetupMode]     = useState("timed"); // "timed" | "manual"
@@ -797,6 +799,68 @@ function CircuitTrainer() {
             })}
           </div>
 
+          {/* Quick-add exercise */}
+          <div style={{marginBottom:16}}>
+            {!showQuickAdd ? (
+              <button onClick={()=>setShowQuickAdd(true)}
+                style={{...S.btnSec, width:"100%", textAlign:"center", color:"#4ade80", borderColor:"#4ade8044"}}>
+                + New exercise
+              </button>
+            ) : (
+              <div style={{background:"#111825", border:"1px solid #2d4a35", borderRadius:12, padding:"16px"}}>
+                <div style={{fontSize:11, letterSpacing:"0.16em", color:"#4ade80", fontWeight:600, marginBottom:12}}>NEW EXERCISE</div>
+                <input
+                  value={quickForm.name}
+                  onChange={e=>setQuickForm(f=>({...f, name:e.target.value}))}
+                  placeholder="Exercise name *"
+                  autoFocus
+                  style={{width:"100%", background:"#0d0f12", border:"1px solid #2d3a50", borderRadius:8,
+                    padding:"10px 12px", color:"#e8eaed", fontSize:13, fontFamily:"'DM Mono',monospace",
+                    outline:"none", boxSizing:"border-box", marginBottom:8}}
+                />
+                <div style={{display:"flex", gap:8, marginBottom:10}}>
+                  <select
+                    value={quickForm.type}
+                    onChange={e=>setQuickForm(f=>({...f, type:e.target.value}))}
+                    style={{flex:1, background:"#0d0f12", border:"1px solid #2d3a50", borderRadius:8,
+                      padding:"10px 10px", color:"#e8eaed", fontSize:12, fontFamily:"'DM Mono',monospace", outline:"none"}}>
+                    {TYPE_OPTIONS.map(t=><option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <select
+                    value={quickForm.equipment}
+                    onChange={e=>setQuickForm(f=>({...f, equipment:e.target.value}))}
+                    style={{flex:2, background:"#0d0f12", border:"1px solid #2d3a50", borderRadius:8,
+                      padding:"10px 10px", color:"#e8eaed", fontSize:12, fontFamily:"'DM Mono',monospace", outline:"none"}}>
+                    {equipDb.map(eq=><option key={eq.id} value={eq.label}>{eq.label}</option>)}
+                  </select>
+                </div>
+                <div style={{display:"flex", gap:8}}>
+                  <button
+                    onClick={()=>{ setShowQuickAdd(false); setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:""}); }}
+                    style={{...S.btnSec, flex:1, textAlign:"center", fontSize:12, padding:"10px"}}>
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!quickForm.name.trim()}
+                    onClick={()=>{
+                      if (!quickForm.name.trim()) return;
+                      const newEx = { ...quickForm, id: Date.now().toString(36), gif:"", shared:null };
+                      setDb(prev => [...prev, newEx]);
+                      setChosen(prev => [...prev, newEx]);
+                      setShowQuickAdd(false);
+                      setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:""});
+                    }}
+                    style={{flex:2, background:quickForm.name.trim()?"#4ade80":"#1e2a3a",
+                      color:quickForm.name.trim()?"#042008":"#4a5568", border:"none", borderRadius:8,
+                      fontSize:12, fontWeight:700, padding:"10px", fontFamily:"'DM Mono',monospace",
+                      cursor:quickForm.name.trim()?"pointer":"not-allowed", letterSpacing:"0.08em"}}>
+                    + Add &amp; Select
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Test audio */}
           <button onClick={()=>{
             try {
@@ -1057,11 +1121,9 @@ function CircuitTrainer() {
             </div>
           </div>
           {/* Main message */}
-          <div style={{fontSize:13, letterSpacing:"0.16em", color:"#4a5568", fontWeight:600,
-            marginBottom:10, textTransform:"uppercase"}}>Circuit 1 starts in</div>
-          <div style={{fontSize:36, fontWeight:700, fontFamily:"Georgia,serif", color:"#f7fafc",
-            lineHeight:1.1, textAlign:"center", marginBottom:8}}>
-            {countdownSec} second{countdownSec!==1?"s":""}
+          <div style={{fontSize:40, fontWeight:700, fontFamily:"Georgia,serif", color:"#f7fafc",
+            lineHeight:1.15, textAlign:"center", marginBottom:32}}>
+            Circuit 1<br/>starts in
           </div>
           {/* First exercise per participant */}
           <div style={{width:"100%", maxWidth:500, marginTop:32, display:"flex", flexDirection:"column", gap:8, padding:"0 16px", boxSizing:"border-box"}}>
