@@ -1102,9 +1102,11 @@ function CircuitTrainer() {
           transition:"background 1s ease", pointerEvents:"none"}}/>
         <div style={{position:"relative", zIndex:1, display:"flex", flexDirection:"column",
           alignItems:"center", gap:0}}>
-          {/* Label */}
-          <div style={{fontSize:13, letterSpacing:"0.22em", color:"#4a5568", fontWeight:600,
-            marginBottom:32, textTransform:"uppercase"}}>Get ready</div>
+          {/* Main message */}
+          <div style={{fontSize:40, fontWeight:700, fontFamily:"Georgia,serif", color:"#f7fafc",
+            lineHeight:1.15, textAlign:"center", marginBottom:32}}>
+            Circuit 1<br/>starts in
+          </div>
           {/* Ring + number */}
           <div style={{position:"relative", width:180, height:180, marginBottom:36}}>
             <svg width="180" height="180" style={{transform:"rotate(-90deg)"}}>
@@ -1120,11 +1122,6 @@ function CircuitTrainer() {
                 color:urgent?"#f87171":"#4ade80", fontFamily:"'DM Mono',monospace",
                 transition:"color 0.5s"}}>{countdownSec}</span>
             </div>
-          </div>
-          {/* Main message */}
-          <div style={{fontSize:40, fontWeight:700, fontFamily:"Georgia,serif", color:"#f7fafc",
-            lineHeight:1.15, textAlign:"center", marginBottom:32}}>
-            Circuit 1<br/>starts in
           </div>
           {/* First exercise per participant */}
           <div style={{width:"100%", maxWidth:500, marginTop:32, display:"flex", flexDirection:"column", gap:8, padding:"0 16px", boxSizing:"border-box"}}>
