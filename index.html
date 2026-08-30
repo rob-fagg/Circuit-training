@@ -1147,7 +1147,7 @@ function CircuitTrainer() {
                     {/* Name */}
                     <div style={{fontSize:13, fontWeight:700, color:PERSON_COLORS[i],
                       letterSpacing:"0.12em", textTransform:"uppercase",
-                      minWidth:64, flexShrink:0}}>{names[i]||`P${i+1}`}</div>
+                      width:100, flexShrink:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>{names[i]||`P${i+1}`}</div>
                     <div style={{width:1, height:28, background:"#2d3a50", flexShrink:0}}/>
                     {/* Exercise */}
                     {ex ? (
@@ -1294,7 +1294,7 @@ function CircuitTrainer() {
                 <div style={{flex:1, display:"flex", alignItems:"center", gap:16, padding:"14px 18px", minWidth:0}}>
                   {/* Name */}
                   <div style={{fontSize:17, fontWeight:700, color:p.color, letterSpacing:"0.12em",
-                    textTransform:"uppercase", width:112, flexShrink:0,
+                    textTransform:"uppercase", width:100, flexShrink:0,
                     whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>{p.name}</div>
                   {/* Divider */}
                   <div style={{width:1, height:36, background:"#2d3a50", flexShrink:0}}/>
