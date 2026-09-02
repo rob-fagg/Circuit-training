@@ -58,49 +58,49 @@ const fbWrite = (path, data) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Circuit Training App v8 — full setup flow
 const INITIAL_DB = [
-  { id:"goblet",    name:"Goblet Squat",           equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Core",          type:"strength", gif:"https://media.giphy.com/media/lk7oVwUa3IL9VLvHHc/giphy.gif",   cues:"Hold KB at chest, feet shoulder-width, sit deep into squat, elbows track inside knees. Drive through heels to stand." },
-  { id:"pressup",   name:"Press Ups",               equipment:"Bodyweight",         shared:null,         muscles:"Chest · Triceps · Shoulders",    type:"strength", gif:"https://media.giphy.com/media/7zuAQ6ebll6maa2rBF/giphy.gif",      cues:"Hands shoulder-width, body straight from head to heel. Lower chest to floor, elbows 45° from torso. Press explosively." },
-  { id:"kbthrust",  name:"Kettlebell Thrust",       equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Shoulders",     type:"power",    gif:"https://media.giphy.com/media/XHAwmawJlBPK0Z4KQa/giphy.gif",   cues:"Front rack KB at chest, squat deep then drive through hips to press overhead in one explosive movement." },
-  { id:"climbers",  name:"Mountain Climbers",       equipment:"Bodyweight",         shared:null,         muscles:"Core · Hip Flexors · Cardio",    type:"cardio",   gif:"https://media.giphy.com/media/VzlPEkuoqlgjehxvxk/giphy.gif",      cues:"High plank, hands under shoulders. Drive knees alternately to chest at pace. Keep hips level, core braced." },
-  { id:"rdl",       name:"Romanian Deadlift",       equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Hamstrings · Glutes · Back",     type:"strength", gif:"https://media.giphy.com/media/uLEIRpuHd1GJnbkz6S/giphy.gif",   cues:"Soft bend in knees, hinge at hips pushing them back. KB tracks close to legs. Feel hamstring stretch, then drive hips forward to stand." },
-  { id:"mbslam",    name:"Medicine Ball Slam",      equipment:"4kg Med Ball",       shared:"medball",    muscles:"Shoulders · Core · Full Body",   type:"power",    gif:"https://media.giphy.com/media/tceP5Df67oXBR2fJfE/giphy.gif",   cues:"Raise ball overhead, full extension on toes, slam ball hard into ground. Hinge to pick up. Stay explosive." },
-  { id:"curtsey",   name:"Curtsey Lunge",           equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Quads · Adductors",     type:"strength", gif:"https://media.giphy.com/media/Ig4OerZPyHFJHzBt9P/giphy.gif",  cues:"Step one foot diagonally behind the other, lower back knee toward floor. Torso upright. Drive through front heel to return. Alternate legs." },
-  { id:"hipthrust", name:"Hip Thrust with Band",    equipment:"Bands", shared:null,         muscles:"Glutes · Hamstrings",            type:"strength", gif:"https://media.giphy.com/media/1yifjCkFGZ00lTdExB/giphy.gif",  cues:"Band across hips, upper back on bench or floor. Drive hips to full extension, pause 1 second at top. Squeeze hard." },
-  { id:"curl",      name:"Bicep Curl with Band",    equipment:"Bands",              shared:null,         muscles:"Biceps · Forearms",              type:"strength", gif:"https://media.giphy.com/media/KUVTfh1CUbRy5lNpVs/giphy.gif",   cues:"Stand on band, palms forward. Curl to shoulders, slow 3-count lower. Keep elbows pinned at sides throughout." },
-  { id:"row",       name:"Single Arm Row / Plank",  equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Back · Core Anti-Rotation",      type:"strength", gif:"https://media.giphy.com/media/3o7WTpoktkknlEjbAk/giphy.gif",   cues:"Plank on one hand with feet wide. Row KB to hip, elbow skims ribs. Keep hips square — resist rotation. Swap arms each circuit." },
-  { id:"uprow",     name:"Upright Row",             equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Traps · Shoulders · Biceps",     type:"strength", gif:"https://media.giphy.com/media/jUEZIBHpKVSNSuXB6V/giphy.gif",   cues:"Narrow grip on KB, lead with elbows up to chin height. Control the lower. Keep the movement smooth, avoid shrugging." },
-  { id:"mbsquat",   name:"Squat with Med Ball",     equipment:"4kg Med Ball",       shared:"medball",    muscles:"Quads · Glutes · Shoulders",     type:"strength", gif:"https://media.giphy.com/media/kFOTXxvxMxevuuL4pF/giphy.gif",   cues:"Hold ball at chest. Squat to parallel, then press ball overhead as you stand. Control on the way down." },
-  { id:"plank",     name:"Plank Hold",              equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Glutes",      type:"core",     gif:"https://media.giphy.com/media/3PywN1RF3eLyVTgzTw/giphy.gif",   cues:"Forearms on floor, elbows under shoulders. Squeeze glutes and core hard. Body one straight line. Breathe steadily." },
-  { id:"burpee",    name:"Burpee",                  equipment:"Bodyweight",         shared:null,         muscles:"Full Body · Cardio",             type:"cardio",   gif:"https://media.giphy.com/media/DwCTlTpXqBsQCaLcnj/giphy.gif",        cues:"Drop chest to floor, jump feet to hands, explode up with arms overhead. Breathe out on the jump. Keep moving." },
-  { id:"bandchest", name:"Band Chest Stretch",      equipment:"Bands",              shared:null,         muscles:"Chest · Shoulder · Mobility",    type:"mobility", gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"Band behind back at shoulder height. Step hands wider, open chest and hold a 2-second squeeze. Breathe into the stretch." },
-  { id:"glungelat", name:"Glider Lateral Lunge",    equipment:"Glider disc",        shared:null,         muscles:"Adductors · Glutes · Quads",     type:"strength", gif:"https://media.giphy.com/media/3o7TKwxYkeW0ZvTqsU/giphy.gif",  cues:"Disc under one foot, slide leg wide to side, sit into standing leg with control. Return by pushing through standing heel." },
-  { id:"glidermc",  name:"Glider Mountain Climber", equipment:"Glider discs",       shared:null,         muscles:"Core · Hip Flexors · Shoulders", type:"cardio",   gif:"https://media.giphy.com/media/VzlPEkuoqlgjehxvxk/giphy.gif",   cues:"Discs under feet in high plank. Slide knees alternately to chest keeping hips down. Core locked, arms straight." },
-  { id:"jog",       name:"Jog / Run",               equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Full Body",             type:"cardio",   gif:"https://media.giphy.com/media/lboo9np8SJ58sSlGg8/giphy.gif",  cues:"Steady controlled pace. Breathe through nose if possible. Pump arms and keep an upright posture. Shake it out." },
-  { id:"sqjack",    name:"Squat Jacks",             equipment:"Bodyweight",         shared:null,         muscles:"Quads · Glutes · Cardio",        type:"cardio",   gif:"https://media.giphy.com/media/WtnkfTBF2D2OsODSxf/giphy.gif",   cues:"Jump feet wide into squat, then jump feet together to stand. Keep chest up in squat position. Fast and rhythmic." },
-  { id:"thruster",  name:"Dumbbell Thruster",       equipment:"Bodyweight",         shared:null,         muscles:"Full Body · Power",              type:"power",    gif:"https://media.giphy.com/media/ueMtp7cdM7uRnMX2I7/giphy.gif",   cues:"Front squat to overhead press in one fluid movement. Use the momentum from the squat to drive the press." },
-  { id:"tuckjump",  name:"Tuck Jumps",              equipment:"Bodyweight",         shared:null,         muscles:"Quads · Calves · Cardio",        type:"power",    gif:"https://media.giphy.com/media/xU1ryd1OkMzbh9VwDR/giphy.gif",   cues:"Jump and pull knees to chest at top. Land soft on balls of feet, absorb impact by bending knees. Stay light and bouncy." },
-  { id:"situp",     name:"Sit Ups",                 equipment:"Bodyweight",         shared:null,         muscles:"Abs · Hip Flexors",              type:"core",     gif:"https://media.giphy.com/media/2SYcotj6zFcogm51Bp/giphy.gif",   cues:"Feet flat, hands behind head or crossed on chest. Sit all the way up, lower slow on the way down. Breathe out on the way up." },
+  { id:"goblet",    name:"Goblet Squat",           equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Core",          type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/lk7oVwUa3IL9VLvHHc/giphy.gif",   cues:"Hold KB at chest, feet shoulder-width, sit deep into squat, elbows track inside knees. Drive through heels to stand." },
+  { id:"pressup",   name:"Press Ups",               equipment:"Bodyweight",         shared:null,         muscles:"Chest · Triceps · Shoulders",    type:"strength", bodyPart:"Chest",     gif:"https://media.giphy.com/media/7zuAQ6ebll6maa2rBF/giphy.gif",      cues:"Hands shoulder-width, body straight from head to heel. Lower chest to floor, elbows 45° from torso. Press explosively." },
+  { id:"kbthrust",  name:"Kettlebell Thrust",       equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Shoulders",     type:"power",    bodyPart:"Full Body", gif:"https://media.giphy.com/media/XHAwmawJlBPK0Z4KQa/giphy.gif",   cues:"Front rack KB at chest, squat deep then drive through hips to press overhead in one explosive movement." },
+  { id:"climbers",  name:"Mountain Climbers",       equipment:"Bodyweight",         shared:null,         muscles:"Core · Hip Flexors · Cardio",    type:"cardio",   bodyPart:"Cardio",    gif:"https://media.giphy.com/media/VzlPEkuoqlgjehxvxk/giphy.gif",      cues:"High plank, hands under shoulders. Drive knees alternately to chest at pace. Keep hips level, core braced." },
+  { id:"rdl",       name:"Romanian Deadlift",       equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Hamstrings · Glutes · Back",     type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/uLEIRpuHd1GJnbkz6S/giphy.gif",   cues:"Soft bend in knees, hinge at hips pushing them back. KB tracks close to legs. Feel hamstring stretch, then drive hips forward to stand." },
+  { id:"mbslam",    name:"Medicine Ball Slam",      equipment:"4kg Med Ball",       shared:"medball",    muscles:"Shoulders · Core · Full Body",   type:"power",    bodyPart:"Full Body", gif:"https://media.giphy.com/media/tceP5Df67oXBR2fJfE/giphy.gif",   cues:"Raise ball overhead, full extension on toes, slam ball hard into ground. Hinge to pick up. Stay explosive." },
+  { id:"curtsey",   name:"Curtsey Lunge",           equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Quads · Adductors",     type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/Ig4OerZPyHFJHzBt9P/giphy.gif",  cues:"Step one foot diagonally behind the other, lower back knee toward floor. Torso upright. Drive through front heel to return. Alternate legs." },
+  { id:"hipthrust", name:"Hip Thrust with Band",    equipment:"Bands",              shared:null,         muscles:"Glutes · Hamstrings",            type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/1yifjCkFGZ00lTdExB/giphy.gif",  cues:"Band across hips, upper back on bench or floor. Drive hips to full extension, pause 1 second at top. Squeeze hard." },
+  { id:"curl",      name:"Bicep Curl with Band",    equipment:"Bands",              shared:null,         muscles:"Biceps · Forearms",              type:"strength", bodyPart:"Arms",      gif:"https://media.giphy.com/media/KUVTfh1CUbRy5lNpVs/giphy.gif",   cues:"Stand on band, palms forward. Curl to shoulders, slow 3-count lower. Keep elbows pinned at sides throughout." },
+  { id:"row",       name:"Single Arm Row / Plank",  equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Back · Core Anti-Rotation",      type:"strength", bodyPart:"Back",      gif:"https://media.giphy.com/media/3o7WTpoktkknlEjbAk/giphy.gif",   cues:"Plank on one hand with feet wide. Row KB to hip, elbow skims ribs. Keep hips square — resist rotation. Swap arms each circuit." },
+  { id:"uprow",     name:"Upright Row",             equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Traps · Shoulders · Biceps",     type:"strength", bodyPart:"Shoulders", gif:"https://media.giphy.com/media/jUEZIBHpKVSNSuXB6V/giphy.gif",   cues:"Narrow grip on KB, lead with elbows up to chin height. Control the lower. Keep the movement smooth, avoid shrugging." },
+  { id:"mbsquat",   name:"Squat with Med Ball",     equipment:"4kg Med Ball",       shared:"medball",    muscles:"Quads · Glutes · Shoulders",     type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/kFOTXxvxMxevuuL4pF/giphy.gif",   cues:"Hold ball at chest. Squat to parallel, then press ball overhead as you stand. Control on the way down." },
+  { id:"plank",     name:"Plank Hold",              equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Glutes",      type:"core",     bodyPart:"Core",      gif:"https://media.giphy.com/media/3PywN1RF3eLyVTgzTw/giphy.gif",   cues:"Forearms on floor, elbows under shoulders. Squeeze glutes and core hard. Body one straight line. Breathe steadily." },
+  { id:"burpee",    name:"Burpee",                  equipment:"Bodyweight",         shared:null,         muscles:"Full Body · Cardio",             type:"cardio",   bodyPart:"Full Body", gif:"https://media.giphy.com/media/DwCTlTpXqBsQCaLcnj/giphy.gif",        cues:"Drop chest to floor, jump feet to hands, explode up with arms overhead. Breathe out on the jump. Keep moving." },
+  { id:"bandchest", name:"Band Chest Stretch",      equipment:"Bands",              shared:null,         muscles:"Chest · Shoulder · Mobility",    type:"mobility", bodyPart:"Chest",     gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"Band behind back at shoulder height. Step hands wider, open chest and hold a 2-second squeeze. Breathe into the stretch." },
+  { id:"glungelat", name:"Glider Lateral Lunge",    equipment:"Glider disc",        shared:null,         muscles:"Adductors · Glutes · Quads",     type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/3o7TKwxYkeW0ZvTqsU/giphy.gif",  cues:"Disc under one foot, slide leg wide to side, sit into standing leg with control. Return by pushing through standing heel." },
+  { id:"glidermc",  name:"Glider Mountain Climber", equipment:"Glider discs",       shared:null,         muscles:"Core · Hip Flexors · Shoulders", type:"cardio",   bodyPart:"Cardio",    gif:"https://media.giphy.com/media/VzlPEkuoqlgjehxvxk/giphy.gif",   cues:"Discs under feet in high plank. Slide knees alternately to chest keeping hips down. Core locked, arms straight." },
+  { id:"jog",       name:"Jog / Run",               equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Full Body",             type:"cardio",   bodyPart:"Cardio",    gif:"https://media.giphy.com/media/lboo9np8SJ58sSlGg8/giphy.gif",  cues:"Steady controlled pace. Breathe through nose if possible. Pump arms and keep an upright posture. Shake it out." },
+  { id:"sqjack",    name:"Squat Jacks",             equipment:"Bodyweight",         shared:null,         muscles:"Quads · Glutes · Cardio",        type:"cardio",   bodyPart:"Cardio",    gif:"https://media.giphy.com/media/WtnkfTBF2D2OsODSxf/giphy.gif",   cues:"Jump feet wide into squat, then jump feet together to stand. Keep chest up in squat position. Fast and rhythmic." },
+  { id:"thruster",  name:"Dumbbell Thruster",       equipment:"Bodyweight",         shared:null,         muscles:"Full Body · Power",              type:"power",    bodyPart:"Full Body", gif:"https://media.giphy.com/media/ueMtp7cdM7uRnMX2I7/giphy.gif",   cues:"Front squat to overhead press in one fluid movement. Use the momentum from the squat to drive the press." },
+  { id:"tuckjump",  name:"Tuck Jumps",              equipment:"Bodyweight",         shared:null,         muscles:"Quads · Calves · Cardio",        type:"power",    bodyPart:"Cardio",    gif:"https://media.giphy.com/media/xU1ryd1OkMzbh9VwDR/giphy.gif",   cues:"Jump and pull knees to chest at top. Land soft on balls of feet, absorb impact by bending knees. Stay light and bouncy." },
+  { id:"situp",     name:"Sit Ups",                 equipment:"Bodyweight",         shared:null,         muscles:"Abs · Hip Flexors",              type:"core",     bodyPart:"Core",      gif:"https://media.giphy.com/media/2SYcotj6zFcogm51Bp/giphy.gif",   cues:"Feet flat, hands behind head or crossed on chest. Sit all the way up, lower slow on the way down. Breathe out on the way up." },
 
   // ── Circuit 1 additions ──────────────────────────────────────────────────
-  { id:"lunge_kb",   name:"Lunges with KB/Ball",      equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Hamstrings",    type:"strength", gif:"https://media.giphy.com/media/l3q2Q3sUEkEyDvfPO/giphy.gif",   cues:"Hold KB at chest or sides. Step forward, lower back knee to just above floor. Drive through front heel to return. Alternate forward, back and curtsy variations each round." },
-  { id:"pikecrnch",  name:"Pike Crunches",             equipment:"Bodyweight",         shared:null,         muscles:"Abs · Hip Flexors · Shoulders",  type:"core",     gif:"https://media.giphy.com/media/25a0Zl7launMhiD6LU/giphy.gif",   cues:"Start in high plank. Drive hips up into pike position, pulling navel to spine. Lower with control. Keep arms straight throughout." },
-  { id:"runlaps",    name:"Run Laps",                  equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Full Body",             type:"cardio",   gif:"https://media.giphy.com/media/lboo9np8SJ58sSlGg8/giphy.gif",  cues:"Maintain an effort you can sustain for the interval. Drive arms, land midfoot, keep chest tall. Push the pace in the final 10 seconds." },
-  { id:"bodyroll",   name:"Body Roll",                 equipment:"Bodyweight",         shared:null,         muscles:"Spine · Core · Mobility",        type:"mobility", gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"From standing, slowly roll down through your spine vertebra by vertebra, hang at the bottom, then roll back up. Soft knees, breathe throughout." },
-  { id:"aframejog",  name:"A-Frame Jog on Spot",       equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Legs · Core",           type:"cardio",   gif:"https://media.giphy.com/media/lboo9np8SJ58sSlGg8/giphy.gif",  cues:"Feet wider than hips in A-frame stance. Jog on the spot, driving knees up alternately. Stay on the balls of feet, arms pumping. Keep core tight." },
-  { id:"frogsquat",  name:"Frog Squats",               equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Inner Thighs · Quads",  type:"strength", gif:"https://media.giphy.com/media/1qfKN8Dt0CRdCRxz9q/giphy.gif",   cues:"Wide stance, toes turned out 45°. Squat deep, elbows pressing knees open at bottom. Drive through heels, squeeze glutes at top." },
-  { id:"chestextbn", name:"Chest Extension",           equipment:"Bands",              shared:null,         muscles:"Chest · Front Shoulder · Mobility",type:"mobility", gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"Band behind back, arms out wide. Squeeze shoulder blades together and open chest. Hold 2 seconds at full extension. Control the return." },
+  { id:"lunge_kb",   name:"Lunges with KB/Ball",      equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Quads · Glutes · Hamstrings",    type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/l3q2Q3sUEkEyDvfPO/giphy.gif",   cues:"Hold KB at chest or sides. Step forward, lower back knee to just above floor. Drive through front heel to return. Alternate forward, back and curtsy variations each round." },
+  { id:"pikecrnch",  name:"Pike Crunches",             equipment:"Bodyweight",         shared:null,         muscles:"Abs · Hip Flexors · Shoulders",  type:"core",     bodyPart:"Core",      gif:"https://media.giphy.com/media/25a0Zl7launMhiD6LU/giphy.gif",   cues:"Start in high plank. Drive hips up into pike position, pulling navel to spine. Lower with control. Keep arms straight throughout." },
+  { id:"runlaps",    name:"Run Laps",                  equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Full Body",             type:"cardio",   bodyPart:"Cardio",    gif:"https://media.giphy.com/media/lboo9np8SJ58sSlGg8/giphy.gif",  cues:"Maintain an effort you can sustain for the interval. Drive arms, land midfoot, keep chest tall. Push the pace in the final 10 seconds." },
+  { id:"bodyroll",   name:"Body Roll",                 equipment:"Bodyweight",         shared:null,         muscles:"Spine · Core · Mobility",        type:"mobility", bodyPart:"Core",      gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"From standing, slowly roll down through your spine vertebra by vertebra, hang at the bottom, then roll back up. Soft knees, breathe throughout." },
+  { id:"aframejog",  name:"A-Frame Jog on Spot",       equipment:"Bodyweight",         shared:null,         muscles:"Cardio · Legs · Core",           type:"cardio",   bodyPart:"Cardio",    gif:"https://media.giphy.com/media/lboo9np8SJ58sSlGg8/giphy.gif",  cues:"Feet wider than hips in A-frame stance. Jog on the spot, driving knees up alternately. Stay on the balls of feet, arms pumping. Keep core tight." },
+  { id:"frogsquat",  name:"Frog Squats",               equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Inner Thighs · Quads",  type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/1qfKN8Dt0CRdCRxz9q/giphy.gif",   cues:"Wide stance, toes turned out 45°. Squat deep, elbows pressing knees open at bottom. Drive through heels, squeeze glutes at top." },
+  { id:"chestextbn", name:"Chest Extension",           equipment:"Bands",              shared:null,         muscles:"Chest · Front Shoulder · Mobility",type:"mobility",bodyPart:"Chest",     gif:"https://media.giphy.com/media/26xBwdIuRJiAIqHIA/giphy.gif",   cues:"Band behind back, arms out wide. Squeeze shoulder blades together and open chest. Hold 2 seconds at full extension. Control the return." },
 
   // ── Circuit 2 additions ──────────────────────────────────────────────────
-  { id:"butterflycr",name:"Butterfly Crunches",        equipment:"Bodyweight",         shared:null,         muscles:"Abs · Inner Thighs",             type:"core",     gif:"https://media.giphy.com/media/1esrGRpNR0Sd47KyKd/giphy.gif",   cues:"Lie on back, soles of feet together in butterfly position. Hands behind head, crunch up bringing elbows toward knees. Lower with control." },
-  { id:"tricepext",  name:"Tricep Extension",          equipment:"Bands",              shared:null,         muscles:"Triceps · Shoulders",            type:"strength", gif:"https://media.giphy.com/media/ZhQemHbCsw9MlmY4Cp/giphy.gif",   cues:"Band anchored overhead or underfoot. Extend arms from 90° at elbow to fully straight. Elbows stay pinned at sides. Slow 3-count return." },
-  { id:"rustwist",   name:"Russian Twists",            equipment:"4kg Med Ball",       shared:"medball",    muscles:"Obliques · Core · Hips",         type:"core",     gif:"https://media.giphy.com/media/3oKIPlKP1MrQFWXuXm/giphy.gif",   cues:"Sit with knees bent, heels just off floor. Hold ball at chest, rotate side to side touching ball to floor each rep. Keep chest tall." },
-  { id:"skaterjmp",  name:"Skater Jumps",              equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Quads · Balance · Cardio",type:"power",   gif:"https://media.giphy.com/media/wqMYREwqjGeIYbtuBK/giphy.gif",   cues:"Leap laterally off one foot, land softly on opposite foot with knee slightly bent. Swing arms like a speed skater. Stay low and explosive." },
-  { id:"stepupwall", name:"Step Up onto Wall",         equipment:"Bodyweight",         shared:null,         muscles:"Quads · Glutes · Balance",       type:"strength", gif:"https://media.giphy.com/media/GCfe8FEQQ3akJ5REmL/giphy.gif",   cues:"Step one foot up onto low wall or step, drive through that heel to bring whole body up. Step down controlled. Alternate lead leg each rep." },
-  { id:"kbrowsquat", name:"KB Upright Row to Squat",  equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Traps · Shoulders · Quads · Glutes",type:"strength", gif:"https://media.giphy.com/media/jUEZIBHpKVSNSuXB6V/giphy.gif",   cues:"Pull KB to chin in upright row, lower with control, then flow straight into a squat. Link the movements smoothly — row, lower, squat, stand, repeat." },
-  { id:"plankshouldertap",name:"Plank Shoulder Taps",  equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Anti-Rotation",type:"core",    gif:"https://media.giphy.com/media/NkPeSnQNdQNZYSRluD/giphy.gif",   cues:"High plank. Tap opposite hand to shoulder alternately. Brace core hard to stop hips rocking side to side. The less movement the better." },
-  { id:"standcoretwist",name:"Standing Core Twist",   equipment:"4kg Med Ball",       shared:"medball",    muscles:"Obliques · Core · Shoulders",    type:"core",     gif:"https://media.giphy.com/media/cpKD9u3S25xYL8tcbr/giphy.gif",   cues:"Stand feet hip-width, hold ball at chest. Rotate torso fully side to side keeping hips facing forward. Controlled power — not momentum." },
-  { id:"dynplank",   name:"Dynamic Plank",             equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Arms",        type:"core",     gif:"https://media.giphy.com/media/YRJjX9RbVu0LUVRyie/giphy.gif",   cues:"Alternate between forearm plank and high plank — one arm at a time. Keep hips level and still throughout. Set a steady rhythm." },
-  { id:"pressupball",name:"Press-Up / Jump Out on Ball",equipment:"4kg Med Ball",      shared:"medball",    muscles:"Chest · Triceps · Core · Cardio",type:"power",    gif:"https://media.giphy.com/media/kiBhD3r18ChQM6cPym/giphy.gif",      cues:"One hand on ball, one on floor. Perform press-up, then roll or jump hands to swap sides. Keep core tight throughout the transition." },
+  { id:"butterflycr",name:"Butterfly Crunches",        equipment:"Bodyweight",         shared:null,         muscles:"Abs · Inner Thighs",             type:"core",     bodyPart:"Core",      gif:"https://media.giphy.com/media/1esrGRpNR0Sd47KyKd/giphy.gif",   cues:"Lie on back, soles of feet together in butterfly position. Hands behind head, crunch up bringing elbows toward knees. Lower with control." },
+  { id:"tricepext",  name:"Tricep Extension",          equipment:"Bands",              shared:null,         muscles:"Triceps · Shoulders",            type:"strength", bodyPart:"Arms",      gif:"https://media.giphy.com/media/ZhQemHbCsw9MlmY4Cp/giphy.gif",   cues:"Band anchored overhead or underfoot. Extend arms from 90° at elbow to fully straight. Elbows stay pinned at sides. Slow 3-count return." },
+  { id:"rustwist",   name:"Russian Twists",            equipment:"4kg Med Ball",       shared:"medball",    muscles:"Obliques · Core · Hips",         type:"core",     bodyPart:"Core",      gif:"https://media.giphy.com/media/3oKIPlKP1MrQFWXuXm/giphy.gif",   cues:"Sit with knees bent, heels just off floor. Hold ball at chest, rotate side to side touching ball to floor each rep. Keep chest tall." },
+  { id:"skaterjmp",  name:"Skater Jumps",              equipment:"Bodyweight",         shared:null,         muscles:"Glutes · Quads · Balance · Cardio",type:"power",  bodyPart:"Cardio",    gif:"https://media.giphy.com/media/wqMYREwqjGeIYbtuBK/giphy.gif",   cues:"Leap laterally off one foot, land softly on opposite foot with knee slightly bent. Swing arms like a speed skater. Stay low and explosive." },
+  { id:"stepupwall", name:"Step Up onto Wall",         equipment:"Bodyweight",         shared:null,         muscles:"Quads · Glutes · Balance",       type:"strength", bodyPart:"Legs",      gif:"https://media.giphy.com/media/GCfe8FEQQ3akJ5REmL/giphy.gif",   cues:"Step one foot up onto low wall or step, drive through that heel to bring whole body up. Step down controlled. Alternate lead leg each rep." },
+  { id:"kbrowsquat", name:"KB Upright Row to Squat",  equipment:"12kg Kettlebell",    shared:"kettlebell", muscles:"Traps · Shoulders · Quads · Glutes",type:"strength",bodyPart:"Full Body", gif:"https://media.giphy.com/media/jUEZIBHpKVSNSuXB6V/giphy.gif",   cues:"Pull KB to chin in upright row, lower with control, then flow straight into a squat. Link the movements smoothly — row, lower, squat, stand, repeat." },
+  { id:"plankshouldertap",name:"Plank Shoulder Taps",  equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Anti-Rotation",type:"core",    bodyPart:"Core",      gif:"https://media.giphy.com/media/NkPeSnQNdQNZYSRluD/giphy.gif",   cues:"High plank. Tap opposite hand to shoulder alternately. Brace core hard to stop hips rocking side to side. The less movement the better." },
+  { id:"standcoretwist",name:"Standing Core Twist",   equipment:"4kg Med Ball",       shared:"medball",    muscles:"Obliques · Core · Shoulders",    type:"core",     bodyPart:"Core",      gif:"https://media.giphy.com/media/cpKD9u3S25xYL8tcbr/giphy.gif",   cues:"Stand feet hip-width, hold ball at chest. Rotate torso fully side to side keeping hips facing forward. Controlled power — not momentum." },
+  { id:"dynplank",   name:"Dynamic Plank",             equipment:"Bodyweight",         shared:null,         muscles:"Core · Shoulders · Arms",        type:"core",     bodyPart:"Core",      gif:"https://media.giphy.com/media/YRJjX9RbVu0LUVRyie/giphy.gif",   cues:"Alternate between forearm plank and high plank — one arm at a time. Keep hips level and still throughout. Set a steady rhythm." },
+  { id:"pressupball",name:"Press-Up / Jump Out on Ball",equipment:"4kg Med Ball",      shared:"medball",    muscles:"Chest · Triceps · Core · Cardio",type:"power",    bodyPart:"Full Body", gif:"https://media.giphy.com/media/kiBhD3r18ChQM6cPym/giphy.gif",      cues:"One hand on ball, one on floor. Perform press-up, then roll or jump hands to swap sides. Keep core tight throughout the transition." },
 ];
 
 const DEFAULT_IDS = ["goblet","pressup","mbslam","climbers","rdl","curtsey","hipthrust","kbthrust","curl","plank"];
@@ -112,7 +112,8 @@ const TYPE_COLORS = {
   core:     { bg:"#3a2a1a", accent:"#fb923c", label:"CORE"     },
   mobility: { bg:"#1a2a3a", accent:"#60a5fa", label:"MOBILITY" },
 };
-const TYPE_OPTIONS  = ["strength","cardio","power","core","mobility"];
+const TYPE_OPTIONS       = ["strength","cardio","power","core","mobility"];
+const BODY_PART_OPTIONS  = ["Chest","Back","Shoulders","Arms","Core","Legs","Full Body","Cardio"];
 const EQUIP_COLORS  = { kettlebell:"#f87171", medball:"#c084fc" };
 const PERSON_COLORS = ["#60a5fa","#f472b6","#34d399","#fb923c"];
 
@@ -296,7 +297,8 @@ function CircuitTrainer() {
   const [elapsed,      setElapsed]      = useState(0);
   const [focusPerson,  setFocusPerson]  = useState(null);
   const [paused,       setPaused]       = useState(false);
-  const [reviewFilter, setReviewFilter] = useState("all");
+  const [reviewFilter,    setReviewFilter]    = useState("all");
+  const [bodyPartFilter,  setBodyPartFilter]  = useState("all");
   const [reviewSearch, setReviewSearch] = useState("");
   const [optimised,    setOptimised]    = useState(false);
   const [dragIdx,      setDragIdx]      = useState(null);
@@ -321,7 +323,7 @@ function CircuitTrainer() {
   });
   const [previewPopup,  setPreviewPopup]  = useState(null);  // exercise object or null
   const [showQuickAdd,  setShowQuickAdd]  = useState(false);
-  const [quickForm,     setQuickForm]     = useState({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:""});
+  const [quickForm,     setQuickForm]     = useState({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:"", bodyPart:"Core"});
   const [showQuickRecord, setShowQuickRecord] = useState(false);
 
   // ── Timed setup mode ──────────────────────────────────────────────────
@@ -696,22 +698,50 @@ function CircuitTrainer() {
           <div style={{fontSize:11, color:"#4a5568", marginTop:8}}>Bodyweight always included. Add equipment in ⚙ Admin → Equipment.</div>
         </div>
 
+        {/* ── Focus area (body part filter) ── */}
+        <div style={{marginBottom:28}}>
+          <div style={S.label}>Focus Area <span style={{color:"#4a5568", textTransform:"none", letterSpacing:0, fontSize:11}}>(filters exercises)</span></div>
+          <div style={{display:"flex", gap:7, flexWrap:"wrap"}}>
+            {["all",...BODY_PART_OPTIONS].map(bp=>{
+              const on = bodyPartFilter===bp;
+              return (
+                <button key={bp} onClick={()=>setBodyPartFilter(bp)} style={{
+                  padding:"7px 13px", borderRadius:20, fontSize:11,
+                  fontFamily:"'DM Mono',monospace", letterSpacing:"0.07em",
+                  cursor:"pointer", textTransform:"uppercase", fontWeight:600,
+                  background: on ? "#60a5fa" : "#1a2035",
+                  color: on ? "#042008" : "#4a7aaa",
+                  border: on ? "none" : "1px solid #60a5fa44"
+                }}>{bp==="all" ? "All" : bp}</button>
+              );
+            })}
+          </div>
+        </div>
+
         <div style={{...S.card, marginBottom:28, lineHeight:2.1}}>
           {[
             ["Exercises", setupMode==="timed" ? `${timedExercises} per circuit` : `${chosen.length} selected`],
             ["Work / Rest", `${fmtSec(activeWorkSec)} on · ${fmtSec(activeRestSec)} rest`],
             ["Circuits", `${activeCircuits}×`],
             ["Est. Duration", `~${estMins} min`],
+            bodyPartFilter!=="all" && ["Focus", bodyPartFilter],
             numPeople>1 && ["Stagger", "1 exercise offset per person"],
           ].filter(Boolean).map(([k,v])=>(
             <div key={k} style={{display:"flex", justifyContent:"space-between", fontSize:13}}>
               <span style={{color:"#718096"}}>{k}</span>
-              <span style={{color:"#e2e8f0", fontWeight:600}}>{v}</span>
+              <span style={{color: k==="Focus" ? "#60a5fa" : "#e2e8f0", fontWeight:600}}>{v}</span>
             </div>
           ))}
         </div>
 
-        <button onClick={()=>setScreen("review")} style={S.btnPri}>Review Exercises →</button>
+        <button onClick={()=>{
+          if (bodyPartFilter!=="all") {
+            const avail = db.filter(e=>isExAvail(e,availEquip,equipDb)&&e.bodyPart===bodyPartFilter);
+            const pool  = avail.length>=3 ? avail : db.filter(e=>e.bodyPart===bodyPartFilter);
+            if (pool.length>0) setChosen(pool.slice(0, activeExercises));
+          }
+          setScreen("review");
+        }} style={S.btnPri}>Review Exercises →</button>
       </div>
     </div>
   );
@@ -737,6 +767,7 @@ function CircuitTrainer() {
     const visibleDb = db.filter(ex => {
       if (!showUnavail && !isExAvail(ex, availEquip, equipDb)) return false;
       if (reviewFilter!=="all" && ex.type!==reviewFilter) return false;
+      if (bodyPartFilter!=="all" && (ex.bodyPart||"")!==bodyPartFilter) return false;
       if (reviewSearch && !ex.name.toLowerCase().includes(reviewSearch.toLowerCase()) && !ex.equipment.toLowerCase().includes(reviewSearch.toLowerCase())) return false;
       return true;
     });
@@ -765,8 +796,8 @@ function CircuitTrainer() {
             </button>
           </div>
 
-          {/* Type filter dropdown + show unavailable toggle */}
-          <div style={{display:"flex", gap:8, marginBottom:16, alignItems:"center"}}>
+          {/* Type + Body Part filter row */}
+          <div style={{display:"flex", gap:8, marginBottom:8, alignItems:"center"}}>
             <select value={reviewFilter} onChange={e=>setReviewFilter(e.target.value)}
               style={{flex:1, background:"#1a2035", border:"1px solid #2d3a50", borderRadius:10,
                 padding:"9px 12px", color:"#e8eaed", fontSize:12, fontFamily:"'DM Mono',monospace",
@@ -774,13 +805,25 @@ function CircuitTrainer() {
               <option value="all">All types</option>
               {TYPE_OPTIONS.map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
             </select>
+            <select value={bodyPartFilter} onChange={e=>setBodyPartFilter(e.target.value)}
+              style={{flex:1, background: bodyPartFilter!=="all"?"#0d1f38":"#1a2035",
+                border: bodyPartFilter!=="all"?"1px solid #60a5fa66":"1px solid #2d3a50",
+                borderRadius:10, padding:"9px 12px",
+                color: bodyPartFilter!=="all"?"#60a5fa":"#e8eaed",
+                fontSize:12, fontFamily:"'DM Mono',monospace", outline:"none", cursor:"pointer"}}>
+              <option value="all">All areas</option>
+              {BODY_PART_OPTIONS.map(bp=><option key={bp} value={bp}>{bp}</option>)}
+            </select>
+          </div>
+          {/* Show unavailable toggle */}
+          <div style={{marginBottom:16}}>
             <button onClick={()=>setShowUnavail(s=>!s)} style={{
-              padding:"9px 12px", borderRadius:10, fontSize:11, flexShrink:0,
+              padding:"7px 12px", borderRadius:10, fontSize:11,
               background: showUnavail ? "#f8717120" : "#1a2035",
               color: showUnavail ? "#f87171" : "#4a5568",
               border: showUnavail ? "1px solid #f8717144" : "1px solid #2d3a50",
               fontFamily:"'DM Mono',monospace", letterSpacing:"0.07em", fontWeight:600, cursor:"pointer"
-            }}>{showUnavail ? "✕ Unavail" : "Show unavail"}</button>
+            }}>{showUnavail ? "✕ Hide unavailable" : "Show unavailable"}</button>
           </div>
 
           {/* Full exercise library */}
@@ -824,7 +867,7 @@ function CircuitTrainer() {
                   padding:"10px 12px", color:"#e8eaed", fontSize:13, fontFamily:"'DM Mono',monospace",
                   outline:"none", boxSizing:"border-box", marginBottom:8}}
               />
-              <div style={{display:"flex", gap:8, marginBottom:10}}>
+              <div style={{display:"flex", gap:8, marginBottom:8}}>
                 <select
                   value={quickForm.type}
                   onChange={e=>setQuickForm(f=>({...f, type:e.target.value}))}
@@ -840,6 +883,14 @@ function CircuitTrainer() {
                   {equipDb.map(eq=><option key={eq.id} value={eq.label}>{eq.label}</option>)}
                 </select>
               </div>
+              <select
+                value={quickForm.bodyPart||"Core"}
+                onChange={e=>setQuickForm(f=>({...f, bodyPart:e.target.value}))}
+                style={{width:"100%", background:"#0d0f12", border:"1px solid #2d3a50", borderRadius:8,
+                  padding:"10px 10px", color:"#e8eaed", fontSize:12, fontFamily:"'DM Mono',monospace",
+                  outline:"none", marginBottom:10}}>
+                {BODY_PART_OPTIONS.map(bp=><option key={bp} value={bp}>{bp}</option>)}
+              </select>
               {/* Demo video preview + record button */}
               {quickForm.gif ? (
                 <div style={{marginBottom:10, borderRadius:8, overflow:"hidden", position:"relative"}}>
@@ -860,7 +911,7 @@ function CircuitTrainer() {
               )}
               <div style={{display:"flex", gap:8}}>
                 <button
-                  onClick={()=>{ setShowQuickAdd(false); setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:""}); }}
+                  onClick={()=>{ setShowQuickAdd(false); setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:"", bodyPart:"Core"}); }}
                   style={{...S.btnSec, flex:1, textAlign:"center", fontSize:12, padding:"10px"}}>
                   Cancel
                 </button>
@@ -872,7 +923,7 @@ function CircuitTrainer() {
                     setDb(prev => [...prev, newEx]);
                     setChosen(prev => [...prev, newEx]);
                     setShowQuickAdd(false);
-                    setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:""});
+                    setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:"", bodyPart:"Core"});
                   }}
                   style={{flex:2, background:quickForm.name.trim()?"#4ade80":"#1e2a3a",
                     color:quickForm.name.trim()?"#042008":"#4a5568", border:"none", borderRadius:8,
@@ -1567,7 +1618,7 @@ function RecordDemoModal({ onSave, onClose }) {
 }
 
 // ── Admin Screen ──────────────────────────────────────────────────────────────
-const EMPTY_EX = { id:"", name:"", equipment:"", shared:null, cues:"", muscles:"", type:"strength", gif:"" };
+const EMPTY_EX = { id:"", name:"", equipment:"", shared:null, cues:"", muscles:"", type:"strength", bodyPart:"Core", gif:"" };
 
 function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEquip, equipDb, setEquipDb }) {
   const [adminTab,    setAdminTab]   = useState("exercises");
@@ -1610,6 +1661,7 @@ function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEqu
 - muscles: e.g. "Quads · Glutes · Core"
 - cues: 1-2 sentence coaching instruction
 - type: "strength", "cardio", "power", "core", or "mobility"
+- bodyPart: one of "Chest", "Back", "Shoulders", "Arms", "Core", "Legs", "Full Body", "Cardio"
 - gif: leave as empty string ""
 No markdown, no explanation, just the JSON object.`,
           messages:[{role:"user",content:nlInput}]
@@ -1730,11 +1782,15 @@ No markdown, no explanation, just the JSON object.`,
           {filtered.map(ex=>{const tc=TYPE_COLORS[ex.type]||TYPE_COLORS.strength; return(
             <div key={ex.id} style={{background:"#1a2035", border:"1px solid #2d3a50", borderRadius:12, overflow:"hidden"}}>
               <div style={{display:"flex", gap:0}}>
-                {/* GIF thumb */}
+                {/* GIF / video thumb */}
                 {ex.gif&&(
-                  <div style={{width:72, flexShrink:0, background:"#0d1525", cursor:"pointer"}} onClick={()=>setPreview(ex)}>
-                    <img src={ex.gif} alt={ex.name} style={{width:"100%", height:"100%", objectFit:"cover", display:"block"}}
-                      onError={e=>{e.target.parentElement.style.display="none";}}/>
+                  <div style={{width:72, flexShrink:0, background:"#0d1525", cursor:"pointer", overflow:"hidden"}} onClick={()=>setPreview(ex)}>
+                    {ex.gif.startsWith("data:video/")
+                      ? <video src={ex.gif} autoPlay muted loop playsInline
+                          style={{width:"100%", height:"100%", objectFit:"cover", display:"block"}}/>
+                      : <img src={ex.gif} alt={ex.name} style={{width:"100%", height:"100%", objectFit:"cover", display:"block"}}
+                          onError={e=>{e.target.parentElement.style.display="none";}}/>
+                    }
                   </div>
                 )}
                 <div style={{flex:1, padding:"14px"}}>
@@ -1762,11 +1818,14 @@ No markdown, no explanation, just the JSON object.`,
         </div>)} {/* end exercises tab */}
       </div>
 
-      {/* GIF Preview Modal */}
+      {/* GIF / video Preview Modal */}
       {preview&&(
         <div style={{position:"fixed", inset:0, background:"#0d0f12ee", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={()=>setPreview(null)}>
           <div style={{background:"#1a2035", borderRadius:16, overflow:"hidden", maxWidth:400, width:"100%"}}>
-            <img src={preview.gif} alt={preview.name} style={{width:"100%", display:"block"}}/>
+            {preview.gif.startsWith("data:video/")
+              ? <video src={preview.gif} autoPlay muted loop playsInline style={{width:"100%", display:"block", maxHeight:300, objectFit:"cover"}}/>
+              : <img src={preview.gif} alt={preview.name} style={{width:"100%", display:"block"}}/>
+            }
             <div style={{padding:"14px 18px"}}>
               <div style={{fontSize:16, fontWeight:700, color:"#f7fafc", marginBottom:4}}>{preview.name}</div>
               <div style={{fontSize:13, color:"#a0aec0", lineHeight:1.6}}>{preview.cues}</div>
@@ -1861,11 +1920,20 @@ No markdown, no explanation, just the JSON object.`,
                   <textarea value={form.cues} onChange={e=>setForm(f=>({...f,cues:e.target.value}))} placeholder="Coaching cue shown during session…" rows={3} style={{...inStyle, resize:"vertical"}}/>
                 </div>
 
-                <div style={{marginBottom:18}}>
+                <div style={{marginBottom:16}}>
                   <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:10, fontWeight:600}}>TYPE</div>
                   <div style={{display:"flex", gap:7, flexWrap:"wrap"}}>
                     {TYPE_OPTIONS.map(t=>{const tc=TYPE_COLORS[t],on=form.type===t;return(
                       <button key={t} onClick={()=>setForm(f=>({...f,type:t}))} style={{padding:"7px 13px", borderRadius:20, fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:"0.08em", cursor:"pointer", textTransform:"uppercase", fontWeight:600, background:on?tc.accent:"#1e2a3a", color:on?"#042008":tc.accent, border:on?"none":`1px solid ${tc.accent}44`}}>{t}</button>
+                    );})}
+                  </div>
+                </div>
+
+                <div style={{marginBottom:18}}>
+                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:10, fontWeight:600}}>BODY PART FOCUS</div>
+                  <div style={{display:"flex", gap:7, flexWrap:"wrap"}}>
+                    {BODY_PART_OPTIONS.map(bp=>{const on=form.bodyPart===bp;return(
+                      <button key={bp} onClick={()=>setForm(f=>({...f,bodyPart:bp}))} style={{padding:"6px 12px", borderRadius:20, fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:"0.07em", cursor:"pointer", fontWeight:600, background:on?"#60a5fa":"#1e2a3a", color:on?"#042008":"#60a5fa", border:on?"none":"1px solid #60a5fa44"}}>{bp}</button>
                     );})}
                   </div>
                 </div>
