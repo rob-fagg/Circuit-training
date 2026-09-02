@@ -321,7 +321,8 @@ function CircuitTrainer() {
   });
   const [previewPopup,  setPreviewPopup]  = useState(null);  // exercise object or null
   const [showQuickAdd,  setShowQuickAdd]  = useState(false);
-  const [quickForm,     setQuickForm]     = useState({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:""});
+  const [quickForm,     setQuickForm]     = useState({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:""});
+  const [showQuickRecord, setShowQuickRecord] = useState(false);
 
   // ── Timed setup mode ──────────────────────────────────────────────────
   const [setupMode,     setSetupMode]     = useState("timed"); // "timed" | "manual"
@@ -839,9 +840,27 @@ function CircuitTrainer() {
                   {equipDb.map(eq=><option key={eq.id} value={eq.label}>{eq.label}</option>)}
                 </select>
               </div>
+              {/* Demo video preview + record button */}
+              {quickForm.gif ? (
+                <div style={{marginBottom:10, borderRadius:8, overflow:"hidden", position:"relative"}}>
+                  <video src={quickForm.gif} autoPlay muted loop playsInline
+                    style={{width:"100%", maxHeight:120, objectFit:"cover", display:"block"}}/>
+                  <button onClick={()=>setQuickForm(f=>({...f,gif:""}))}
+                    style={{position:"absolute", top:5, right:5, background:"rgba(0,0,0,0.6)",
+                      border:"none", borderRadius:6, color:"#f87171", fontSize:11,
+                      padding:"2px 7px", cursor:"pointer", fontFamily:"'DM Mono',monospace"}}>✕</button>
+                </div>
+              ) : (
+                <button onClick={()=>setShowQuickRecord(true)}
+                  style={{width:"100%", marginBottom:10, padding:"9px", background:"transparent",
+                    border:"1px solid #f8717144", borderRadius:8, color:"#f87171",
+                    fontSize:12, fontWeight:700, fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>
+                  ● Record demo (optional)
+                </button>
+              )}
               <div style={{display:"flex", gap:8}}>
                 <button
-                  onClick={()=>{ setShowQuickAdd(false); setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:""}); }}
+                  onClick={()=>{ setShowQuickAdd(false); setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:""}); }}
                   style={{...S.btnSec, flex:1, textAlign:"center", fontSize:12, padding:"10px"}}>
                   Cancel
                 </button>
@@ -849,11 +868,11 @@ function CircuitTrainer() {
                   disabled={!quickForm.name.trim()}
                   onClick={()=>{
                     if (!quickForm.name.trim()) return;
-                    const newEx = { ...quickForm, id: Date.now().toString(36), gif:"", shared:null };
+                    const newEx = { ...quickForm, id: Date.now().toString(36), shared:null };
                     setDb(prev => [...prev, newEx]);
                     setChosen(prev => [...prev, newEx]);
                     setShowQuickAdd(false);
-                    setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:""});
+                    setQuickForm({name:"", type:"strength", equipment:"Bodyweight", muscles:"", cues:"", gif:""});
                   }}
                   style={{flex:2, background:quickForm.name.trim()?"#4ade80":"#1e2a3a",
                     color:quickForm.name.trim()?"#042008":"#4a5568", border:"none", borderRadius:8,
@@ -862,6 +881,11 @@ function CircuitTrainer() {
                   + Add &amp; Select
                 </button>
               </div>
+              {showQuickRecord&&(
+                <RecordDemoModal
+                  onSave={url=>{ setQuickForm(f=>({...f,gif:url})); setShowQuickRecord(false); }}
+                  onClose={()=>setShowQuickRecord(false)}/>
+              )}
             </div>
           )}
 
@@ -1065,8 +1089,12 @@ function CircuitTrainer() {
             display:"flex", flexDirection:"column"}}>
             {previewPopup.gif && (
               <div style={{width:"100%", height:200, background:"#0d1525", flexShrink:0, overflow:"hidden"}}>
-                <img src={previewPopup.gif} alt={previewPopup.name}
-                  style={{width:"100%", height:"100%", objectFit:"cover", opacity:0.9}}/>
+                {previewPopup.gif.startsWith("data:video/")
+                  ? <video src={previewPopup.gif} autoPlay muted loop playsInline
+                      style={{width:"100%", height:"100%", objectFit:"cover"}}/>
+                  : <img src={previewPopup.gif} alt={previewPopup.name}
+                      style={{width:"100%", height:"100%", objectFit:"cover", opacity:0.9}}/>
+                }
               </div>
             )}
             <div style={{padding:"20px 22px 24px", overflowY:"auto"}}>
@@ -1345,8 +1373,12 @@ function PersonCard({ slot, color, name, isResting, large, showName }) {
       {/* GIF banner on large card, small thumb on grid */}
       {slot.gif && !gifErr && (
         <div style={{width:"100%", height:large?160:80, background:"#0d1525", overflow:"hidden", position:"relative"}}>
-          <img src={slot.gif} alt={slot.name} onError={()=>setGifErr(true)}
-            style={{width:"100%", height:"100%", objectFit:"cover", opacity:0.85}}/>
+          {slot.gif.startsWith("data:video/")
+            ? <video src={slot.gif} autoPlay muted loop playsInline
+                style={{width:"100%", height:"100%", objectFit:"cover", opacity:0.85}}/>
+            : <img src={slot.gif} alt={slot.name} onError={()=>setGifErr(true)}
+                style={{width:"100%", height:"100%", objectFit:"cover", opacity:0.85}}/>
+          }
           <div style={{position:"absolute", inset:0, background:"linear-gradient(to bottom, transparent 40%, #1a2035 100%)"}}/>
         </div>
       )}
@@ -1402,6 +1434,138 @@ function Slider({ label, value, min, max, step, onChange, accent }) {
   );
 }
 
+// ── Record Demo Modal ─────────────────────────────────────────────────────────
+function RecordDemoModal({ onSave, onClose }) {
+  const [stream,    setStream]    = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [dataUrl,   setDataUrl]   = useState(null);
+  const [countdown, setCountdown] = useState(null);
+  const [camError,  setCamError]  = useState("");
+  const liveRef    = useRef(null);
+  const recorderRef = useRef(null);
+  const chunksRef  = useRef([]);
+  const timerRef   = useRef(null);
+
+  useEffect(() => {
+    let s;
+    navigator.mediaDevices.getUserMedia({
+      video: { width:{ideal:480}, height:{ideal:480}, facingMode:"environment" },
+      audio: false
+    }).then(stream => { s=stream; setStream(stream); })
+      .catch(e => setCamError("Camera access denied: " + e.message));
+    return () => {
+      if (s) s.getTracks().forEach(t=>t.stop());
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (stream && liveRef.current && !dataUrl) {
+      liveRef.current.srcObject = stream;
+    }
+  }, [stream, dataUrl]);
+
+  const startRecording = () => {
+    if (!stream) return;
+    chunksRef.current = [];
+    const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
+      ? "video/webm;codecs=vp8" : "video/webm";
+    const recorder = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond:250000 });
+    recorder.ondataavailable = e => { if (e.data.size>0) chunksRef.current.push(e.data); };
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, {type:"video/webm"});
+      const reader = new FileReader();
+      reader.onload = () => setDataUrl(reader.result);
+      reader.readAsDataURL(blob);
+    };
+    recorderRef.current = recorder;
+    recorder.start();
+    setRecording(true);
+    let sec = 8;
+    setCountdown(sec);
+    timerRef.current = setInterval(() => {
+      sec--;
+      setCountdown(sec);
+      if (sec <= 0) stopRecording();
+    }, 1000);
+  };
+
+  const stopRecording = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
+    setRecording(false);
+    setCountdown(null);
+  };
+
+  return (
+    <div onClick={onClose} style={{position:"fixed", inset:0, zIndex:300,
+      background:"rgba(0,0,0,0.9)", display:"flex", alignItems:"center",
+      justifyContent:"center", padding:20, boxSizing:"border-box"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#141c2b",
+        border:"1px solid #2d3a50", borderRadius:18, maxWidth:360, width:"100%",
+        overflow:"hidden", display:"flex", flexDirection:"column"}}>
+
+        {/* Viewfinder */}
+        <div style={{width:"100%", aspectRatio:"4/3", background:"#0d0f12", position:"relative", overflow:"hidden"}}>
+          {!dataUrl
+            ? <video ref={liveRef} autoPlay muted playsInline style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+            : <video src={dataUrl} autoPlay muted loop playsInline style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+          }
+          {recording && countdown!==null && (
+            <div style={{position:"absolute", top:10, right:12, background:"rgba(248,113,113,0.85)",
+              borderRadius:20, padding:"4px 12px", fontSize:14, fontWeight:700,
+              color:"#fff", fontFamily:"'DM Mono',monospace"}}>
+              ● {countdown}s
+            </div>
+          )}
+          {camError && (
+            <div style={{position:"absolute", inset:0, display:"flex", alignItems:"center",
+              justifyContent:"center", padding:20, textAlign:"center",
+              fontSize:13, color:"#f87171", fontFamily:"'DM Mono',monospace"}}>{camError}</div>
+          )}
+        </div>
+
+        {/* Controls */}
+        <div style={{padding:"12px 14px 16px"}}>
+          <div style={{fontSize:10, color:"#4a5568", letterSpacing:"0.12em", textTransform:"uppercase",
+            textAlign:"center", marginBottom:10}}>
+            {dataUrl ? "Preview — loops in-app · tap Use or Retake" : "Max 8 sec · no audio saved"}
+          </div>
+          {!dataUrl ? (
+            <div style={{display:"flex", gap:8}}>
+              <button onClick={onClose} style={{flex:1, padding:"11px", background:"transparent",
+                border:"1px solid #2d3a50", borderRadius:8, color:"#718096",
+                fontSize:12, fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>Cancel</button>
+              {!recording
+                ? <button onClick={startRecording} disabled={!!camError}
+                    style={{flex:2, padding:"11px", border:"none", borderRadius:8,
+                      background:camError?"#1e2a3a":"#f87171", color:camError?"#4a5568":"#fff",
+                      fontSize:13, fontWeight:700, fontFamily:"'DM Mono',monospace",
+                      cursor:camError?"not-allowed":"pointer"}}>● Record</button>
+                : <button onClick={stopRecording} style={{flex:2, padding:"11px",
+                    border:"2px solid #f87171", borderRadius:8, background:"transparent",
+                    color:"#f87171", fontSize:13, fontWeight:700,
+                    fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>■ Stop</button>
+              }
+            </div>
+          ) : (
+            <div style={{display:"flex", gap:8}}>
+              <button onClick={()=>setDataUrl(null)} style={{flex:1, padding:"11px", background:"transparent",
+                border:"1px solid #2d3a50", borderRadius:8, color:"#718096",
+                fontSize:12, fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>Retake</button>
+              <button onClick={()=>onSave(dataUrl)} style={{flex:2, padding:"11px",
+                background:"#4ade80", border:"none", borderRadius:8, color:"#042008",
+                fontSize:13, fontWeight:700, fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>
+                ✓ Use this
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Admin Screen ──────────────────────────────────────────────────────────────
 const EMPTY_EX = { id:"", name:"", equipment:"", shared:null, cues:"", muscles:"", type:"strength", gif:"" };
 
@@ -1417,6 +1581,7 @@ function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEqu
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmError,   setLlmError]   = useState("");
   const [preview,    setPreview]    = useState(null);
+  const [showRecordModal, setShowRecordModal] = useState(false);
   const [newEquipName,   setNewEquipName]   = useState("");
 
   const openNew  = () => { setForm({...EMPTY_EX, id:Date.now().toString(36)}); setNlInput(""); setLlmError(""); setAddStep("describe"); setEditing("new"); };
@@ -1647,7 +1812,7 @@ No markdown, no explanation, just the JSON object.`,
               <div>
                 {editing==="new"&&!llmError&&form.name&&<div style={{background:"#0a2010", border:"1px solid #4ade8066", borderRadius:8, padding:"11px 14px", marginBottom:18, fontSize:13, color:"#68d391"}}>✓ Fields filled — review and adjust as needed</div>}
 
-                {[["Name","name",""],["Muscles","muscles","e.g. Quads · Glutes · Core"],["GIF URL (optional)","gif","https://media.giphy.com/…"]].map(([l,k,ph])=>(
+                {[["Name","name",""],["Muscles","muscles","e.g. Quads · Glutes · Core"]].map(([l,k,ph])=>(
                   <div key={k} style={{marginBottom:16}}>
                     <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>{l.toUpperCase()}</div>
                     <input value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={inStyle}/>
@@ -1662,7 +1827,34 @@ No markdown, no explanation, just the JSON object.`,
                     ))}
                   </select>
                 </div>
-                {form.gif&&<div style={{marginBottom:16, borderRadius:8, overflow:"hidden"}}><img src={form.gif} alt="preview" style={{width:"100%", maxHeight:160, objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/></div>}
+
+                {/* Demo video / GIF */}
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>DEMO VIDEO</div>
+                  {form.gif && (
+                    <div style={{marginBottom:8, borderRadius:8, overflow:"hidden", position:"relative"}}>
+                      {form.gif.startsWith("data:video/")
+                        ? <video src={form.gif} autoPlay muted loop playsInline style={{width:"100%", maxHeight:160, objectFit:"cover", display:"block"}}/>
+                        : <img src={form.gif} alt="preview" style={{width:"100%", maxHeight:160, objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>
+                      }
+                      <button onClick={()=>setForm(f=>({...f,gif:""}))}
+                        style={{position:"absolute", top:6, right:6, background:"rgba(0,0,0,0.6)",
+                          border:"none", borderRadius:6, color:"#f87171", fontSize:12,
+                          padding:"3px 8px", cursor:"pointer", fontFamily:"'DM Mono',monospace"}}>✕</button>
+                    </div>
+                  )}
+                  <div style={{display:"flex", gap:8}}>
+                    <input value={form.gif&&!form.gif.startsWith("data:")?form.gif:""} placeholder="https://media.giphy.com/… or record ↓"
+                      onChange={e=>setForm(f=>({...f,gif:e.target.value}))}
+                      style={{...inStyle, flex:1, fontSize:11}}/>
+                    <button onClick={()=>setShowRecordModal(true)}
+                      style={{padding:"10px 14px", borderRadius:10, border:"none",
+                        background:"#f87171", color:"#fff", fontSize:12, fontWeight:700,
+                        fontFamily:"'DM Mono',monospace", cursor:"pointer", whiteSpace:"nowrap", flexShrink:0}}>
+                      ● Rec
+                    </button>
+                  </div>
+                </div>
 
                 <div style={{marginBottom:16}}>
                   <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>CUES</div>
@@ -1688,6 +1880,12 @@ No markdown, no explanation, just the JSON object.`,
             )}
           </div>
         </div>
+      )}
+
+      {showRecordModal&&(
+        <RecordDemoModal
+          onSave={url=>{ setForm(f=>({...f,gif:url})); setShowRecordModal(false); }}
+          onClose={()=>setShowRecordModal(false)}/>
       )}
 
       {deleteId&&(
