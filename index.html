@@ -308,7 +308,7 @@ function CircuitTrainer() {
   const [numPeople,    setNumPeople]    = useState(2);
   const [numExercises, setNumExercises] = useState(10);
   const [names,        setNames]        = useState(() => pickAnimalNames(4));
-  const [workSec,      setWorkSec]      = useState(45);
+  const [workSec,      setWorkSec]      = useState(60);
   const [restSec,      setRestSec]      = useState(15);
   const [chosen,       setChosen]       = useState(() => DEFAULT_IDS.map(id=>INITIAL_DB.find(e=>e.id===id)));
   const [phase,        setPhase]        = useState("work");
@@ -319,7 +319,8 @@ function CircuitTrainer() {
   const [focusPerson,  setFocusPerson]  = useState(null);
   const [paused,       setPaused]       = useState(false);
   const [reviewFilter,    setReviewFilter]    = useState("all");
-  const [bodyPartFilter,  setBodyPartFilter]  = useState("all");
+  const [bodyPartFilter,  setBodyPartFilter]  = useState(new Set());
+  const toggleBp = bp => setBodyPartFilter(prev => { const n=new Set(prev); n.has(bp)?n.delete(bp):n.add(bp); return n; });
   const [reviewSearch, setReviewSearch] = useState("");
   const [optimised,    setOptimised]    = useState(false);
   const [dragIdx,      setDragIdx]      = useState(null);
@@ -419,7 +420,7 @@ function CircuitTrainer() {
   const dragOver = null;
 
   // ── Timed-mode derived values ─────────────────────────────────────────
-  const TIMED_WORK     = 45;
+  const TIMED_WORK     = 60;
   const TIMED_REST     = 20;
   const timedCircuits  = timedMins <= 30 ? 2 : 3;
   const timedExercises = Math.ceil(timedMins * 60 / ((TIMED_WORK + TIMED_REST) * timedCircuits));
@@ -696,47 +697,29 @@ function CircuitTrainer() {
           </div>
         </div>
 
+        {/* ── Focus area (body part multi-select) ── */}
         <div style={{marginBottom:28}}>
-          <div style={S.label}>Equipment</div>
-          <div style={{display:"flex", flexDirection:"column", gap:6}}>
-            {equipDb.filter(e=>!e.alwaysAvail).map(item => {
-              const on = availEquip.has(item.id);
-              return (
-                <button key={item.id} onClick={()=>toggleEquip(item.id)} style={{
-                  display:"flex", alignItems:"center", gap:12,
-                  padding:"10px 14px", borderRadius:10,
-                  background: on ? "#0a2a1a" : "#111520",
-                  border: `1px solid ${on ? "#4ade8055" : "#2d3a50"}`,
-                  cursor:"pointer", textAlign:"left"
-                }}>
-                  <div style={{width:20, height:20, borderRadius:5, background: on?"#4ade80":"transparent", border:`2px solid ${on?"#4ade80":"#3d4a60"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#042008", flexShrink:0}}>{on?"✓":""}</div>
-                  <div style={{flex:1, display:"flex", alignItems:"center", gap:8}}>
-                    <div style={{fontSize:12, fontWeight:700, color: on?"#4ade80":"#4a5568"}}>{item.type||item.label}</div>
-                    {item.weight && <div style={{fontSize:10, color: on?"#4ade8099":"#3d4a60", background: on?"#0a3a1a":"#0d1525", border:`1px solid ${on?"#4ade8033":"#2d3a50"}`, borderRadius:4, padding:"1px 6px", flexShrink:0}}>{item.weight}</div>}
-                  </div>
-                  {item.sharedGroup && <div style={{fontSize:10, color:"#4a5568", letterSpacing:"0.08em"}}>shared</div>}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{fontSize:11, color:"#4a5568", marginTop:8}}>Bodyweight always included. Add equipment in ⚙ Admin → Equipment.</div>
-        </div>
-
-        {/* ── Focus area (body part filter) ── */}
-        <div style={{marginBottom:28}}>
-          <div style={S.label}>Focus Area <span style={{color:"#4a5568", textTransform:"none", letterSpacing:0, fontSize:11}}>(filters exercises)</span></div>
+          <div style={S.label}>Focus Area <span style={{color:"#4a5568", textTransform:"none", letterSpacing:0, fontSize:11}}>(select one or more)</span></div>
           <div style={{display:"flex", gap:7, flexWrap:"wrap"}}>
-            {["all",...BODY_PART_OPTIONS].map(bp=>{
-              const on = bodyPartFilter===bp;
+            <button onClick={()=>setBodyPartFilter(new Set())} style={{
+              padding:"7px 13px", borderRadius:20, fontSize:11,
+              fontFamily:"'DM Mono',monospace", letterSpacing:"0.07em",
+              cursor:"pointer", textTransform:"uppercase", fontWeight:600,
+              background: bodyPartFilter.size===0 ? "#60a5fa" : "#1a2035",
+              color: bodyPartFilter.size===0 ? "#042008" : "#4a7aaa",
+              border: bodyPartFilter.size===0 ? "none" : "1px solid #60a5fa44"
+            }}>All</button>
+            {BODY_PART_OPTIONS.map(bp=>{
+              const on = bodyPartFilter.has(bp);
               return (
-                <button key={bp} onClick={()=>setBodyPartFilter(bp)} style={{
+                <button key={bp} onClick={()=>toggleBp(bp)} style={{
                   padding:"7px 13px", borderRadius:20, fontSize:11,
                   fontFamily:"'DM Mono',monospace", letterSpacing:"0.07em",
                   cursor:"pointer", textTransform:"uppercase", fontWeight:600,
                   background: on ? "#60a5fa" : "#1a2035",
                   color: on ? "#042008" : "#4a7aaa",
                   border: on ? "none" : "1px solid #60a5fa44"
-                }}>{bp==="all" ? "All" : bp}</button>
+                }}>{bp}</button>
               );
             })}
           </div>
@@ -748,7 +731,7 @@ function CircuitTrainer() {
             ["Work / Rest", `${fmtSec(activeWorkSec)} on · ${fmtSec(activeRestSec)} rest`],
             ["Circuits", `${activeCircuits}×`],
             ["Est. Duration", `~${estMins} min`],
-            bodyPartFilter!=="all" && ["Focus", bodyPartFilter],
+            bodyPartFilter.size>0 && ["Focus", [...bodyPartFilter].join(" · ")],
             numPeople>1 && ["Stagger", "1 exercise offset per person"],
           ].filter(Boolean).map(([k,v])=>(
             <div key={k} style={{display:"flex", justifyContent:"space-between", fontSize:13}}>
@@ -759,9 +742,9 @@ function CircuitTrainer() {
         </div>
 
         <button onClick={()=>{
-          if (bodyPartFilter!=="all") {
-            const avail = db.filter(e=>isExAvail(e,availEquip,equipDb)&&e.bodyPart===bodyPartFilter);
-            const pool  = avail.length>=3 ? avail : db.filter(e=>e.bodyPart===bodyPartFilter);
+          if (bodyPartFilter.size > 0) {
+            const avail = db.filter(e=>isExAvail(e,availEquip,equipDb)&&bodyPartFilter.has(e.bodyPart||""));
+            const pool  = avail.length>=3 ? avail : db.filter(e=>bodyPartFilter.has(e.bodyPart||""));
             if (pool.length>0) setChosen(pool.slice(0, activeExercises));
           }
           setScreen("review");
@@ -791,7 +774,7 @@ function CircuitTrainer() {
     const visibleDb = db.filter(ex => {
       if (!showUnavail && !isExAvail(ex, availEquip, equipDb)) return false;
       if (reviewFilter!=="all" && ex.type!==reviewFilter) return false;
-      if (bodyPartFilter!=="all" && (ex.bodyPart||"")!==bodyPartFilter) return false;
+      if (bodyPartFilter.size > 0 && !bodyPartFilter.has(ex.bodyPart||"")) return false;
       if (reviewSearch && !ex.name.toLowerCase().includes(reviewSearch.toLowerCase()) && !ex.equipment.toLowerCase().includes(reviewSearch.toLowerCase())) return false;
       return true;
     });
@@ -829,15 +812,25 @@ function CircuitTrainer() {
               <option value="all">All types</option>
               {TYPE_OPTIONS.map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
             </select>
-            <select value={bodyPartFilter} onChange={e=>setBodyPartFilter(e.target.value)}
-              style={{flex:1, background: bodyPartFilter!=="all"?"#0d1f38":"#1a2035",
-                border: bodyPartFilter!=="all"?"1px solid #60a5fa66":"1px solid #2d3a50",
-                borderRadius:10, padding:"9px 12px",
-                color: bodyPartFilter!=="all"?"#60a5fa":"#e8eaed",
-                fontSize:12, fontFamily:"'DM Mono',monospace", outline:"none", cursor:"pointer"}}>
-              <option value="all">All areas</option>
-              {BODY_PART_OPTIONS.map(bp=><option key={bp} value={bp}>{bp}</option>)}
-            </select>
+            <div style={{flex:1, display:"flex", gap:5, flexWrap:"wrap", alignItems:"center"}}>
+              <button onClick={()=>setBodyPartFilter(new Set())} style={{
+                padding:"6px 11px", borderRadius:20, fontSize:11, cursor:"pointer",
+                background: bodyPartFilter.size===0 ? "#60a5fa" : "#1a2035",
+                color: bodyPartFilter.size===0 ? "#042008" : "#4a7aaa",
+                border: bodyPartFilter.size===0 ? "none" : "1px solid #60a5fa44",
+                fontFamily:"'DM Mono',monospace"}}>All</button>
+              {BODY_PART_OPTIONS.map(bp=>{
+                const on = bodyPartFilter.has(bp);
+                return (
+                  <button key={bp} onClick={()=>toggleBp(bp)} style={{
+                    padding:"6px 11px", borderRadius:20, fontSize:11, cursor:"pointer",
+                    background: on ? "#60a5fa" : "#1a2035",
+                    color: on ? "#042008" : "#4a7aaa",
+                    border: on ? "none" : "1px solid #60a5fa44",
+                    fontFamily:"'DM Mono',monospace"}}>{bp}</button>
+                );
+              })}
+            </div>
           </div>
           {/* Show unavailable toggle */}
           <div style={{marginBottom:16}}>
