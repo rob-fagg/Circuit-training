@@ -893,7 +893,7 @@ function CircuitTrainer() {
                   onChange={e=>setQuickForm(f=>({...f, equipment:e.target.value}))}
                   style={{flex:2, background:"#0d0f12", border:"1px solid #2d3a50", borderRadius:8,
                     padding:"10px 10px", color:"#e8eaed", fontSize:12, fontFamily:"'DM Mono',monospace", outline:"none"}}>
-                  {equipDb.map(eq=><option key={eq.id} value={eq.label}>{eq.label}</option>)}
+                  {[...new Map(equipDb.map(eq=>[(eq.type||eq.label),eq])).values()].map(eq=><option key={eq.id} value={eq.type||eq.label}>{eq.type||eq.label}</option>)}
                 </select>
               </div>
               <select
@@ -1640,54 +1640,51 @@ function AdminScreen({ db, setDb, onBack, initAudio, beep, availEquip, toggleEqu
   const [filter,     setFilter]     = useState("all");
   const [search,     setSearch]     = useState("");
   const [deleteId,   setDeleteId]   = useState(null);
-  const [addStep,    setAddStep]    = useState("describe");
-  const [nlInput,    setNlInput]    = useState("");
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmError,   setLlmError]   = useState("");
   const [preview,    setPreview]    = useState(null);
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [newEquipName,   setNewEquipName]   = useState("");
   const [newEquipWeight, setNewEquipWeight] = useState("");
+  const [editEquipId,   setEditEquipId]   = useState(null);
+  const [editEquipType, setEditEquipType] = useState("");
+  const [editEquipWt,   setEditEquipWt]   = useState("");
 
-  const openNew  = () => { setForm({...EMPTY_EX, id:Date.now().toString(36)}); setNlInput(""); setLlmError(""); setAddStep("describe"); setEditing("new"); };
-  const openEdit = ex => { setForm({...ex}); setEditing(ex.id); setAddStep("review"); };
-  const cancel   = () => { setEditing(null); setForm(EMPTY_EX); setNlInput(""); setLlmError(""); };
+  const openNew  = () => { setForm({...EMPTY_EX, id:Date.now().toString(36)}); setLlmError(""); setEditing("new"); };
+  const openEdit = ex => { setForm({...ex}); setEditing(ex.id); };
+  const cancel   = () => { setEditing(null); setForm(EMPTY_EX); setLlmError(""); };
   const save     = () => {
     if (!form.name.trim()) return;
-    // Ensure equipment defaults to first item if somehow empty
-    const eq = form.equipment || (equipDb[0]?.label ?? "Bodyweight");
+    const eq = form.equipment || (equipDb[0]?.type || equipDb[0]?.label || "Bodyweight");
     setDb(prev=>editing==="new"?[...prev,{...form,equipment:eq}]:prev.map(e=>e.id===editing?{...form,equipment:eq}:e));
     cancel();
   };
 
+  // Called once name + equipment are filled; populates muscles, cues, type, bodyPart
   const fillLlm = async () => {
-    if (!nlInput.trim()) return;
+    if (!form.name.trim() || !form.equipment) return;
     setLlmLoading(true); setLlmError("");
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          model:"claude-sonnet-4-20250514", max_tokens:1000,
-          system:`You are a fitness expert. Given a description of an exercise, return ONLY a JSON object with these fields:
-- name: short exercise name
-- equipment: one of ${equipDb.map(e=>JSON.stringify(e.label)).join(", ")}
+          model:"claude-sonnet-4-20250514", max_tokens:600,
+          system:`You are a fitness expert. Given an exercise name and equipment, return ONLY a JSON object with:
 - muscles: e.g. "Quads · Glutes · Core"
-- cues: 1-2 sentence coaching instruction
-- type: "strength", "cardio", "power", "core", or "mobility"
+- cues: 1-2 sentence coaching cue shown during a workout
+- type: one of "strength", "cardio", "power", "core", "mobility"
 - bodyPart: one of "Chest", "Back", "Shoulders", "Arms", "Core", "Legs", "Full Body", "Cardio"
-- gif: leave as empty string ""
 No markdown, no explanation, just the JSON object.`,
-          messages:[{role:"user",content:nlInput}]
+          messages:[{role:"user",content:`Exercise: "${form.name}"\nEquipment: "${form.equipment}"`}]
         })
       });
       const data = await res.json();
       const text = (data.content||[]).map(c=>c.text||"").join("");
       const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
-      setForm(f=>({...f, ...parsed, id:f.id, gif:parsed.gif||f.gif||""}));
-      setAddStep("review");
+      setForm(f=>({...f, muscles:parsed.muscles||f.muscles, cues:parsed.cues||f.cues, type:parsed.type||f.type, bodyPart:parsed.bodyPart||f.bodyPart}));
     } catch(e) {
-      setLlmError("Couldn't parse response — fill manually."); setAddStep("review");
+      setLlmError("AI fill failed — fill manually.");
     } finally { setLlmLoading(false); }
   };
 
@@ -1740,24 +1737,62 @@ No markdown, no explanation, just the JSON object.`,
               {equipDb.map(item => {
                 const on = item.alwaysAvail || availEquip.has(item.id);
                 const itemType = item.type || item.label;
-                const count = db.filter(ex => ex.equipment === itemType || ex.equipment === item.label).length;
+                const count = db.filter(ex => {
+                  const eq = ex.equipment || "";
+                  return eq === itemType || eq === item.label ||
+                    equipDb.some(e => (e.type||e.label) === eq && (e.type||e.label) === itemType);
+                }).length;
+                const isEditingThis = editEquipId === item.id;
+
+                if (isEditingThis) return (
+                  <div key={item.id} style={{background:"#1a2035", border:"1px solid #60a5fa44", borderRadius:10, padding:"12px 14px"}}>
+                    <div style={{display:"flex", gap:8, marginBottom:8}}>
+                      <input value={editEquipType} onChange={e=>setEditEquipType(e.target.value)}
+                        placeholder="Type (e.g. Kettlebell)"
+                        style={{...inStyle, flex:1, fontSize:12}}/>
+                      <input value={editEquipWt} onChange={e=>setEditEquipWt(e.target.value)}
+                        placeholder="Weight (e.g. 20kg)"
+                        style={{...inStyle, flex:"0 0 110px", fontSize:12}}/>
+                    </div>
+                    <div style={{display:"flex", gap:8}}>
+                      <button onClick={()=>setEditEquipId(null)} style={{...S.btnSec, flex:1, textAlign:"center", fontSize:12}}>Cancel</button>
+                      <button onClick={()=>{
+                        const type = editEquipType.trim();
+                        if (!type) return;
+                        const weight = editEquipWt.trim();
+                        const label = weight ? `${weight} ${type}` : type;
+                        setEquipDb(prev=>prev.map(e=>e.id===item.id?{...e,type,weight:weight||null,label}:e));
+                        setEditEquipId(null);
+                      }} disabled={!editEquipType.trim()}
+                        style={{flex:2, padding:"10px", borderRadius:9, border:"none",
+                          background:editEquipType.trim()?"#4ade80":"#1e2a3a",
+                          color:editEquipType.trim()?"#042008":"#4a5568",
+                          fontSize:12, fontWeight:700, fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>Save</button>
+                    </div>
+                  </div>
+                );
+
                 return (
-                  <div key={item.id} style={{display:"flex", alignItems:"center", gap:12, background:"#1a2035", border:"1px solid #2d3a50", borderRadius:10, padding:"12px 14px"}}>
+                  <div key={item.id} style={{display:"flex", alignItems:"center", gap:10, background:"#1a2035", border:"1px solid #2d3a50", borderRadius:10, padding:"12px 14px"}}>
                     <input type="checkbox" checked={on} disabled={item.alwaysAvail}
                       onChange={()=>toggleEquip(item.id)}
                       style={{width:18, height:18, accentColor:"#4ade80", cursor:item.alwaysAvail?"default":"pointer", flexShrink:0}}/>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:14, fontWeight:600, color: on?"#f7fafc":"#4a5568"}}>{item.label}</div>
-                      <div style={{fontSize:10, color:"#4a5568", marginTop:2, display:"flex", gap:8, flexWrap:"wrap"}}>
-                        {item.alwaysAvail && <span style={{color:"#4ade80"}}>always available</span>}
-                        {item.type && item.type !== item.label && <span style={{color:"#60a5fa"}}>type: {item.type}</span>}
-                        {item.weight && <span style={{color:"#a0aec0"}}>weight: {item.weight}</span>}
-                        <span>{count} exercise{count!==1?"s":""}</span>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{display:"flex", alignItems:"center", gap:8}}>
+                        <div style={{fontSize:14, fontWeight:600, color:on?"#f7fafc":"#4a5568"}}>{itemType}</div>
+                        {item.weight && <div style={{fontSize:10, color:"#a0aec0", background:"#0d1525", border:"1px solid #2d3a50", borderRadius:4, padding:"2px 7px", flexShrink:0}}>{item.weight}</div>}
+                      </div>
+                      <div style={{fontSize:10, color:"#4a5568", marginTop:2}}>
+                        {item.alwaysAvail ? <span style={{color:"#4ade80"}}>always available</span> : <span>{count} exercise{count!==1?"s":""}</span>}
                       </div>
                     </div>
                     {!item.alwaysAvail && (
-                      <button onClick={()=>setEquipDb(prev=>prev.filter(e=>e.id!==item.id))}
-                        style={{background:"#2d1010", border:"1px solid #f8717144", borderRadius:7, color:"#fc8181", fontSize:11, padding:"5px 9px", fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>✕</button>
+                      <>
+                        <button onClick={()=>{setEditEquipId(item.id);setEditEquipType(itemType);setEditEquipWt(item.weight||"");}}
+                          style={{background:"#1e2a3a", border:"1px solid #2d3a50", borderRadius:7, color:"#a0aec0", fontSize:11, padding:"5px 9px", fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>Edit</button>
+                        <button onClick={()=>setEquipDb(prev=>prev.filter(e=>e.id!==item.id))}
+                          style={{background:"#2d1010", border:"1px solid #f8717144", borderRadius:7, color:"#fc8181", fontSize:11, padding:"5px 9px", fontFamily:"'DM Mono',monospace", cursor:"pointer"}}>✕</button>
+                      </>
                     )}
                   </div>
                 );
@@ -1863,38 +1898,10 @@ No markdown, no explanation, just the JSON object.`,
         <div style={{position:"fixed", inset:0, background:"#0d0f12f0", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center"}} onClick={cancel}>
           <div onClick={e=>e.stopPropagation()} style={{background:"#1a2035", border:"1px solid #2d3a50", borderRadius:"18px 18px 0 0", padding:"26px 22px 44px", width:"100%", maxWidth:600, maxHeight:"92vh", overflowY:"auto", boxSizing:"border-box"}}>
             <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22}}>
-              <div style={{fontSize:16, fontWeight:700, color:"#f7fafc"}}>{editing==="new"?(addStep==="describe"?"Describe Exercise":"Review & Edit"):"Edit Exercise"}</div>
-              {editing==="new"&&addStep==="review"&&<button onClick={()=>{setAddStep("describe");setLlmError("");}} style={{...S.btnSec, fontSize:11, padding:"6px 12px"}}>← Re-describe</button>}
+              <div style={{fontSize:16, fontWeight:700, color:"#f7fafc"}}>{editing==="new"?"Add Exercise":"Edit Exercise"}</div>
             </div>
 
-            {editing==="new"&&addStep==="describe"&&(
-              <div>
-                <div style={{background:"#111825", border:"1px solid #3d4a60", borderRadius:10, padding:"16px", marginBottom:20}}>
-                  <div style={{fontSize:11, color:"#60a5fa", letterSpacing:"0.14em", marginBottom:8, fontWeight:700}}>✦ AI FILL</div>
-                  <div style={{fontSize:13, color:"#a0aec0", lineHeight:1.7}}>Describe the exercise in plain English — AI fills all fields automatically.</div>
-                </div>
-                <div style={{marginBottom:18}}>
-                  <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:10, fontWeight:600}}>DESCRIBE THE EXERCISE</div>
-                  <textarea value={nlInput} onChange={e=>setNlInput(e.target.value)} rows={5}
-                    placeholder={'e.g. "F45 favourite — a kettlebell swing where you hinge at hips and drive the bell to shoulder height"\n\nor: "Barry\'s treadmill interval — 30 second all-out sprint at high incline"'}
-                    style={{...inStyle, resize:"vertical", lineHeight:1.65}} autoFocus/>
-                </div>
-                {llmError&&<div style={{background:"#2d1000", border:"1px solid #f87171", borderRadius:8, padding:"11px 14px", fontSize:12, color:"#fc8181", marginBottom:14}}>{llmError}</div>}
-                <div style={{display:"flex", gap:10}}>
-                  <button onClick={cancel} style={{...S.btnSec, flex:1, textAlign:"center"}}>Cancel</button>
-                  <button onClick={fillLlm} disabled={!nlInput.trim()||llmLoading}
-                    style={{flex:2, padding:"14px", borderRadius:10, border:"none", background:!nlInput.trim()||llmLoading?"#1e2a3a":"#60a5fa", color:!nlInput.trim()||llmLoading?"#4a5568":"#042008", fontSize:13, fontWeight:700, letterSpacing:"0.1em", fontFamily:"'DM Mono',monospace", cursor:!nlInput.trim()||llmLoading?"not-allowed":"pointer", textTransform:"uppercase", display:"flex", alignItems:"center", justifyContent:"center", gap:8}}>
-                    {llmLoading?<><Spinner/>Thinking…</>:"✦ Fill with AI"}
-                  </button>
-                </div>
-                <button onClick={()=>setAddStep("review")} style={{width:"100%", marginTop:12, background:"transparent", border:"none", color:"#4a5568", fontSize:12, fontFamily:"'DM Mono',monospace", cursor:"pointer", textDecoration:"underline"}}>Skip — fill manually</button>
-              </div>
-            )}
-
-            {(editing!=="new"||addStep==="review")&&(
-              <div>
-                {editing==="new"&&!llmError&&form.name&&<div style={{background:"#0a2010", border:"1px solid #4ade8066", borderRadius:8, padding:"11px 14px", marginBottom:18, fontSize:13, color:"#68d391"}}>✓ Fields filled — review and adjust as needed</div>}
-
+            <div>
                 {[["Name","name",""],["Muscles","muscles","e.g. Quads · Glutes · Core"]].map(([l,k,ph])=>(
                   <div key={k} style={{marginBottom:16}}>
                     <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>{l.toUpperCase()}</div>
@@ -1905,10 +1912,25 @@ No markdown, no explanation, just the JSON object.`,
                   <div style={{fontSize:11, color:"#a0aec0", letterSpacing:"0.14em", marginBottom:8, fontWeight:600}}>EQUIPMENT</div>
                   <select value={form.equipment||""} onChange={e=>setForm(f=>({...f,equipment:e.target.value}))}
                     style={{...inStyle, appearance:"none", WebkitAppearance:"none", cursor:"pointer"}}>
-                    {equipDb.map(eq=>(
-                      <option key={eq.id} value={eq.label}>{eq.label}</option>
+                    {[...new Map(equipDb.map(eq=>[(eq.type||eq.label),eq])).values()].map(eq=>(
+                      <option key={eq.id} value={eq.type||eq.label}>{eq.type||eq.label}</option>
                     ))}
                   </select>
+                </div>
+
+                {/* AI Fill button — active once name + equipment are filled */}
+                <div style={{marginBottom:16}}>
+                  {llmError&&<div style={{background:"#2d1000", border:"1px solid #f87171", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#fc8181", marginBottom:10}}>{llmError}</div>}
+                  <button onClick={fillLlm}
+                    disabled={!form.name.trim()||!form.equipment||llmLoading}
+                    style={{width:"100%", padding:"12px", borderRadius:10, border:"none",
+                      background:form.name.trim()&&form.equipment&&!llmLoading?"#60a5fa":"#1e2a3a",
+                      color:form.name.trim()&&form.equipment&&!llmLoading?"#042008":"#4a5568",
+                      fontSize:12, fontWeight:700, letterSpacing:"0.1em", fontFamily:"'DM Mono',monospace",
+                      cursor:form.name.trim()&&form.equipment&&!llmLoading?"pointer":"not-allowed",
+                      textTransform:"uppercase", display:"flex", alignItems:"center", justifyContent:"center", gap:8}}>
+                    {llmLoading?<><Spinner/>Thinking…</>:"✦ Fill with AI"}
+                  </button>
                 </div>
 
                 {/* Demo video / GIF */}
@@ -1969,7 +1991,6 @@ No markdown, no explanation, just the JSON object.`,
                   </button>
                 </div>
               </div>
-            )}
           </div>
         </div>
       )}
