@@ -289,6 +289,14 @@ function CircuitTrainer() {
     return e;
   });
   const normalise = exArr => normaliseBands(normaliseEquipment(exArr));
+  // Ensure all equipDb items have a type field (items saved before the type field was introduced won't have it)
+  const normaliseEquipDb = arr => arr.map(item => {
+    if (item.type) return item;
+    const label = item.label || "";
+    const m = label.match(/^(\d+(?:\.\d+)?(?:kg|lb|lbs))\s+(.+)$/i);
+    if (m) return {...item, weight:m[1], type:m[2]};
+    return {...item, type:label};
+  });
   const [db,           setDb]           = useState(() => {
     try {
       const s = localStorage.getItem("ct_exercise_db");
@@ -331,7 +339,7 @@ function CircuitTrainer() {
     return new Set(INITIAL_EQUIP_DB.filter(e=>!e.alwaysAvail).map(e=>e.id));
   });
   const [equipDb, setEquipDb] = useState(() => {
-    try { const s=localStorage.getItem("ct_equip_db"); return s?JSON.parse(s):INITIAL_EQUIP_DB; }
+    try { const s=localStorage.getItem("ct_equip_db"); return s?normaliseEquipDb(JSON.parse(s)):INITIAL_EQUIP_DB; }
     catch { return INITIAL_EQUIP_DB; }
   });
   const [previewPopup,  setPreviewPopup]  = useState(null);  // exercise object or null
@@ -372,7 +380,7 @@ function CircuitTrainer() {
       if (Array.isArray(data) && data.length > 0) setDb(normalise(data));
     });
     fbRead("equipment").then(data => {
-      if (Array.isArray(data) && data.length > 0) setEquipDb(data);
+      if (Array.isArray(data) && data.length > 0) setEquipDb(normaliseEquipDb(data));
     });
   }, []);
 
@@ -702,7 +710,10 @@ function CircuitTrainer() {
                   cursor:"pointer", textAlign:"left"
                 }}>
                   <div style={{width:20, height:20, borderRadius:5, background: on?"#4ade80":"transparent", border:`2px solid ${on?"#4ade80":"#3d4a60"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#042008", flexShrink:0}}>{on?"✓":""}</div>
-                  <div style={{fontSize:12, fontWeight:700, color: on?"#4ade80":"#4a5568", flex:1}}>{item.label}</div>
+                  <div style={{flex:1, display:"flex", alignItems:"center", gap:8}}>
+                    <div style={{fontSize:12, fontWeight:700, color: on?"#4ade80":"#4a5568"}}>{item.type||item.label}</div>
+                    {item.weight && <div style={{fontSize:10, color: on?"#4ade8099":"#3d4a60", background: on?"#0a3a1a":"#0d1525", border:`1px solid ${on?"#4ade8033":"#2d3a50"}`, borderRadius:4, padding:"1px 6px", flexShrink:0}}>{item.weight}</div>}
+                  </div>
                   {item.sharedGroup && <div style={{fontSize:10, color:"#4a5568", letterSpacing:"0.08em"}}>shared</div>}
                 </button>
               );
