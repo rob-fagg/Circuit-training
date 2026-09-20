@@ -118,12 +118,12 @@ const EQUIP_COLORS  = { kettlebell:"#f87171", medball:"#c084fc" };
 const PERSON_COLORS = ["#60a5fa","#f472b6","#34d399","#fb923c"];
 
 const INITIAL_EQUIP_DB = [
-  { id:"eq_body",    label:"Bodyweight",      type:"Bodyweight",   weight:null,   sharedGroup:null,          alwaysAvail:true  },
-  { id:"eq_kb",      label:"12kg Kettlebell", type:"Kettlebell",   weight:"12kg", sharedGroup:"kettlebell",  alwaysAvail:false },
-  { id:"eq_mb",      label:"4kg Med Ball",    type:"Med Ball",     weight:"4kg",  sharedGroup:"medball",     alwaysAvail:false },
-  { id:"eq_bands",   label:"Bands",           type:"Bands",        weight:null,   sharedGroup:null,          alwaysAvail:false },
-  { id:"eq_glider1", label:"Glider disc",     type:"Glider disc",  weight:null,   sharedGroup:null,          alwaysAvail:false },
-  { id:"eq_glider2", label:"Glider discs",    type:"Glider discs", weight:null,   sharedGroup:null,          alwaysAvail:false },
+  { id:"eq_body",    label:"Bodyweight",      type:"Bodyweight",   weight:null,   sharedGroup:null,       alwaysAvail:true  },
+  { id:"eq_kb",      label:"12kg Kettlebell", type:"Kettlebell",   weight:"12kg", sharedGroup:"eq_kb",    alwaysAvail:false },
+  { id:"eq_mb",      label:"4kg Med Ball",    type:"Med Ball",     weight:"4kg",  sharedGroup:"eq_mb",    alwaysAvail:false },
+  { id:"eq_bands",   label:"Bands",           type:"Bands",        weight:null,   sharedGroup:null,       alwaysAvail:false },
+  { id:"eq_glider1", label:"Glider disc",     type:"Glider disc",  weight:null,   sharedGroup:"eq_glider1", alwaysAvail:false },
+  { id:"eq_glider2", label:"Glider discs",    type:"Glider discs", weight:null,   sharedGroup:"eq_glider2", alwaysAvail:false },
 ];
 
 // ── Unusual animal names (50) — shuffled on each page load ───────────────────
@@ -1706,7 +1706,10 @@ No markdown, no explanation, just the JSON object.`,
     if (!type) return;
     const weight = newEquipWeight.trim();
     const label  = weight ? `${weight} ${type}` : type;
-    const newItem = { id: Date.now().toString(36), label, type, weight: weight||null, sharedGroup:null, alwaysAvail: false };
+    const id = Date.now().toString(36);
+    const noShare = ["bodyweight","bands"];
+    const sharedGroup = noShare.includes(type.toLowerCase()) ? null : id;
+    const newItem = { id, label, type, weight: weight||null, sharedGroup, alwaysAvail: false };
     setEquipDb(prev => [...prev, newItem]);
     toggleEquip(newItem.id);
     setNewEquipName("");
